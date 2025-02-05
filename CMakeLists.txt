@@ -1,25 +1,27 @@
 cmake_minimum_required(VERSION 3.10)  # Minimum CMake version
-project(slimeEngine CXX)                # Define project and language
+project(slimeEngine LANGUAGES C CXX)                # Define project and language
 
 set(CMAKE_CXX_STANDARD 20)             # Use C++17 (or change to 20 if needed)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)    # Enforce C++ standard
 set(CMAKE_BUILD_TYPE Debug)  # Use Debug mode
 set(CMAKE_CXX_FLAGS "-Wall -Wextra -g")  # Add warning and debug flags
-set(CMAKE_SOURCE_DIR src/)
 
-find_package(GLFW3 REQUIRED)
-message(STATUS "Found GLFW3 in ${GLFW3_INCLUDE_DIR}")
+set(GLFW3_LIBRARY "$ENV{HOME}/Documents/programming/third-party-libraries/opengl/libs/libglfw3.a")
+set(GLFW3_INCLUDE "$ENV{HOME}/Documents/programming/third-party-libraries/opengl/include")
 
-SET(LIBS ${GLFW3_LIBRARY})
+include_directories(${GLFW3_INCLUDE})
+include_directories(${CMAKE_SOURCE_DIR}/include)
 
-include_directories(include)   # Add include directory
-add_executable(slimeEngine ${SOURCES})
+set(SRC_FILES src/main.cpp)
 
-aux_source_directory(${CMAKE_SOURCE_DIR} SRC_LIST) # Define source files by directory
+add_library(GLAD "src/glad.c")
+set(LIBS GLAD)
 
-# add_library(my_library STATIC utils.cpp)   # Create a static library
-# target_link_libraries(slimeEngine my_library)  # Link to the executable
 
-# add_executable(slimeEngine ${SOURCES} ${SRC_LIST})
-add_executable(slimeEngine ${SRC_LIST})
+add_executable(slimeEngine ${SRC_FILES})
+target_link_libraries(slimeEngine ${LIBS})
 target_link_libraries(slimeEngine ${GLFW3_LIBRARY})
+
+if(UNIX)
+  target_link_libraries(slimeEngine GL pthread X11 Xrandr Xi dl)
+endif()
