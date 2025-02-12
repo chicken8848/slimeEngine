@@ -31,13 +31,14 @@ public:
       fShaderStream << fShaderFile.rdbuf();
 
       vShaderFile.close();
-      vShaderFile.close();
+      fShaderFile.close();
 
       vertexCode = vShaderStream.str();
       fragmentCode = fShaderStream.str();
 
-    } catch (std::ifstream::failure e) {
-      std::cout << "ERROR::SHADER::FILE_NOT_SUCCESSFULLY_READ\n" << std::endl;
+    } catch (std::ifstream::failure &e) {
+      std::cout << "ERROR::SHADER::FILE_NOT_SUCCESSFULLY_READ\n"
+                << e.what() << std::endl;
     }
     const char *vShaderCode = vertexCode.c_str();
     const char *fShaderCode = fragmentCode.c_str();
@@ -48,32 +49,18 @@ public:
 
     vertex = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vertex, 1, &vShaderCode, NULL);
-    glCompilerShader(vertex);
-    glGetShaderiv(vertex, GL_COMPILE_STATUS, &success);
-    if (!success) {
-      glGetShaderInfoLog(vertex, 512, NULL, infoLog);
-      std::cout << "ERROR_SHADER::VERTEX::COMPILATION_FAILED\n"
-                << infoLog << std::endl;
-    }
+    glCompileShader(vertex);
+    checkCompileErrors(vertex, "VERTEX");
     fragment = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(vertex, 1, &fShaderCode, NULL);
-    glCompilerShader(fragment);
-    glGetShaderiv(fragment, GL_COMPILE_STATUS, &success);
-    if (!success) {
-      glGetShaderInfoLog(fragment, 512, NULL, infoLog);
-      std::cout << "ERROR_SHADER::FRAGMENT::COMPILATION_FAILED\n"
-                << infoLog << std::endl;
-    }
+    glShaderSource(fragment, 1, &fShaderCode, NULL);
+    glCompileShader(fragment);
+    checkCompileErrors(fragment, "FRAGMENT");
+
     ID = glCreateProgram();
     glAttachShader(ID, vertex);
     glAttachShader(ID, fragment);
     glLinkProgram(ID);
-    glGetProgramiv(ID, GL_LINK_STATUS, &success);
-    if (!success) {
-      glGetProgramInfoLog(ID, 512, NULL, infoLog);
-      std::cout << "ERROR_SHADER::PROGRAM::LINKING_FAILED\n"
-                << infoLog << std::endl;
-    }
+    checkCompileErrors(ID, "PROGRAM");
 
     glDeleteShader(vertex);
     glDeleteShader(fragment);
@@ -89,6 +76,27 @@ public:
   };
   void setFloat(const std::string &name, float value) const {
     glUniform1i(glGetUniformLocation(ID, name.c_str()), value);
+  };
+
+private:
+  void checkCompileErrors(unsigned int shader, std::string type) {
+    int success;
+    char infoLog[1024];
+    if (type != "PROGRAM") {
+      glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+      if (!success) {
+        glGetShaderInfoLog(shader, 1024, NULL, infoLog);
+        std::cout << "ERROR:SHADER_COMPILATION_ERROR::" << type << "\n"
+                  << infoLog << std::endl;
+      }
+    } else {
+      glGetProgramiv(shader, GL_LINK_STATUS, &success);
+      if (!success) {
+        glGetProgramInfoLog(shader, 1024, NULL, infoLog);
+        std::cout << "ERROR:PROGRAM_LINKING_ERROR::" << type << "\n"
+                  << infoLog << std::endl;
+      }
+    }
   };
 };
 

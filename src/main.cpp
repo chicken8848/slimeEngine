@@ -1,9 +1,12 @@
+#include <GL/gl.h>
 #include <glad/glad.h>
 
 #include <GLFW/glfw3.h>
 #include <cmath>
 #include <iostream>
 #include <stdio.h>
+
+#include "shader.h"
 
 // Create callback function for resizing window
 void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
@@ -17,25 +20,6 @@ void processInput(GLFWwindow *window) {
   if (glfwGetKey(window, GLFW_KEY_ENTER) == GLFW_PRESS) {
   }
 }
-
-const char *vertexShaderSource = "#version 330 core\n"
-                                 "layout (location = 0) in vec3 aPos;\n"
-                                 "layout (location = 1) in vec3 aColor;\n"
-                                 "out vec3 ourColor;"
-                                 "void main()\n"
-                                 "{\n"
-                                 "   gl_Position = vec4(aPos, 1.0);\n"
-                                 "   ourColor = aColor;"
-                                 "}\0";
-
-const char *fragmentShaderSource = "#version 330 core\n"
-                                   "in vec3 ourColor;"
-                                   "out vec4 FragColor;\n"
-                                   "void main()\n"
-                                   "{\n"
-                                   "   FragColor = vec4(ourColor, 1.0f);\n"
-                                   "}\n\0";
-
 int main() {
   glfwInit();
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -61,44 +45,6 @@ int main() {
     return -1;
   }
 
-  // Build and compile shaders
-  unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
-  glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
-  glCompileShader(vertexShader);
-
-  int success;
-  char infoLog[512];
-  glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-
-  if (!success) {
-    glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-    std::cout << "Shader Vertex Compilation Failed\n" << infoLog << std::endl;
-  }
-
-  unsigned int fragmentShader;
-  fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-  glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
-  glCompileShader(fragmentShader);
-
-  glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-  if (!success) {
-    glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
-    std::cout << "Shader Fragment Compilation Failed\n" << infoLog << std::endl;
-  }
-
-  // create shader prgoram
-  unsigned int shaderProgram;
-  shaderProgram = glCreateProgram();
-  // attach and link
-  glAttachShader(shaderProgram, vertexShader);
-  glAttachShader(shaderProgram, fragmentShader);
-  glLinkProgram(shaderProgram);
-  glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-  if (!success) {
-    glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
-    std::cout << "Program Linking Failed\n" << infoLog << std::endl;
-  }
-
   // Tell openGl the size of rendering window
   glViewport(0, 0, 800, 600);
 
@@ -111,6 +57,14 @@ int main() {
       -0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f, // bottom left
       0.0f,  0.5f,  0.0f, 0.0f, 0.0f, 1.0f  // top
   };
+
+  float texCoords[] = {0.0f, 0.0f, 1.0f, 0.0f, 0.5f, 1.0f};
+
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
+
+  float borderColor[] = {1.0f, 1.0f, 0.0f, 1.0f};
+  glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
 
   unsigned int indices[] = {0, 1, 3, 1, 2, 3};
 
@@ -126,12 +80,11 @@ int main() {
   glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float),
                         (void *)(3 * sizeof(float)));
   glEnableVertexAttribArray(1);
-  /*
-  glGenBuffers(1, &EBO);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices,
-               GL_STATIC_DRAW);
-  */
+
+  Shader ourShader("/home/chicken8848/Documents/programming/slimeEngine/src/"
+                   "shaders/pos_as_color.vert",
+                   "/home/chicken8848/Documents/programming/slimeEngine/src/"
+                   "shaders/waves.frag");
 
   // Render loop
   while (!glfwWindowShouldClose(window)) {
@@ -141,19 +94,15 @@ int main() {
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     // use the program
-    glUseProgram(shaderProgram);
+    ourShader.use();
 
     glBindVertexArray(VAO);
 
     glDrawArrays(GL_TRIANGLES, 0, 3);
-    // glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-    // check and call events
     glfwSwapBuffers(window);
     glfwPollEvents();
   }
 
-  glDeleteShader(vertexShader);
-  glDeleteShader(fragmentShader);
   glDeleteVertexArrays(1, &VAO);
   glDeleteBuffers(1, &VBO);
 
