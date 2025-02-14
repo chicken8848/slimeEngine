@@ -8,7 +8,7 @@
 #include "shader.h"
 #include "stb_image.h"
 
-float mixValue = 0.2f;
+float mixValue = 0.2;
 
 // Create callback function for resizing window
 void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
@@ -20,10 +20,18 @@ void processInput(GLFWwindow *window) {
   if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
     glfwSetWindowShouldClose(window, true);
   if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
-    mixValue += 0.1;
+    mixValue += 0.01;
+    if (mixValue > 1.0) {
+      mixValue = 1.0;
+    }
+    printf("%f\n", mixValue);
   }
   if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
-    mixValue -= 0.1;
+    mixValue -= 0.01;
+    if (mixValue < 0) {
+      mixValue = 0;
+    }
+    printf("%f\n", mixValue);
   }
 }
 int main() {
@@ -92,20 +100,22 @@ int main() {
                    "/home/chicken8848/Documents/programming/slimeEngine/src/"
                    "shaders/texture.frag");
 
+  unsigned int texture1, texture2;
+  glGenTextures(1, &texture1);
+  glBindTexture(GL_TEXTURE_2D, texture1);
+
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
                   GL_LINEAR_MIPMAP_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
   int width, height, nrChannels;
   stbi_set_flip_vertically_on_load(true);
   unsigned char *data = stbi_load("/home/chicken8848/Documents/programming/"
                                   "slimeEngine/src/textures/container.jpg",
                                   &width, &height, &nrChannels, 0);
 
-  unsigned int texture1, texture2;
-  glGenTextures(1, &texture1);
-  glBindTexture(GL_TEXTURE_2D, texture1);
   if (data) {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB,
                  GL_UNSIGNED_BYTE, data);
@@ -114,6 +124,8 @@ int main() {
     printf("%s", "Failed to load texture");
   }
 
+  stbi_image_free(data);
+
   glGenTextures(1, &texture2);
   glBindTexture(GL_TEXTURE_2D, texture2);
 
@@ -121,6 +133,7 @@ int main() {
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
                   GL_LINEAR_MIPMAP_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
   data = stbi_load("/home/chicken8848/Documents/programming/"
                    "slimeEngine/src/textures/awesomeface.png",
@@ -130,10 +143,13 @@ int main() {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGBA,
                  GL_UNSIGNED_BYTE, data);
     glGenerateMipmap(GL_TEXTURE_2D);
+  } else {
+    printf("Failed to load texture\n");
   }
 
   stbi_image_free(data);
 
+  ourShader.use();
   glUniform1i(glGetUniformLocation(ourShader.ID, "texture1"), 0);
   ourShader.setInt("texture2", 1);
 
@@ -151,7 +167,8 @@ int main() {
     glBindTexture(GL_TEXTURE_2D, texture1);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, texture2);
-    ourShader.setFloat("visibility", 1.0f);
+
+    ourShader.setFloat("mixture", mixValue);
     ourShader.use();
     glBindVertexArray(VAO);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);

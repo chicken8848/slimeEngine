@@ -6,9 +6,8 @@ in vec2 TexCoord;
 
 uniform sampler2D texture1;
 uniform sampler2D texture2;
-uniform float visibility;
+uniform float mixture;
 
 void main() {
-  vec2 horizontal_invert = vec2(TexCoord.x, TexCoord.y);
-  FragColor = mix(texture(texture1, TexCoord), texture(texture2, horizontal_invert), visibility);
+  FragColor = mix(texture(texture1, TexCoord), texture(texture2, TexCoord), mixture);
 }
