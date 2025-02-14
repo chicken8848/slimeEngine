@@ -12,7 +12,7 @@ set(GLFW3_INCLUDE "$ENV{HOME}/Documents/programming/third-party-libraries/opengl
 include_directories(${GLFW3_INCLUDE})
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
-set(SRC_FILES src/main.cpp)
+set(SRC_FILES src/main.cpp src/stb_image.cpp)
 
 add_library(GLAD "src/glad.c")
 set(LIBS GLAD)
