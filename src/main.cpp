@@ -11,8 +11,9 @@
 #include <iostream>
 #include <stdio.h>
 
-#include "shader.h"
 #include "stb_image.h"
+#include "structs/Camera.h"
+#include "structs/Shader.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
