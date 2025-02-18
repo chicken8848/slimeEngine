@@ -14,13 +14,14 @@ include_directories(${CMAKE_SOURCE_DIR}/include)
 
 set(SRC_FILES src/main.cpp src/stb_image.cpp)
 
-add_library(GLAD "src/glad.c")
+add_library(GLAD STATIC "src/glad.c")
 set(LIBS GLAD)
-
+target_include_directories(GLAD PUBLIC ${CMAKE_SOURCE_DIR}/include)
 
 add_executable(slimeEngine ${SRC_FILES})
-target_link_libraries(slimeEngine ${LIBS})
-target_link_libraries(slimeEngine ${GLFW3_LIBRARY})
+target_include_directories(slimeEngine PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(slimeEngine PUBLIC ${CMAKE_SOURCE_DIR}/src/structs)
+target_link_libraries(slimeEngine GLAD ${GLFW3_LIBRARY})
 
 if(UNIX)
   target_link_libraries(slimeEngine GL pthread X11 Xrandr Xi dl)

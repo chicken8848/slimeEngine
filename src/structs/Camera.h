@@ -9,6 +9,7 @@
 #include <glm/geometric.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <iostream>
 
 enum Camera_Movement { FORWARD, BACKWARD, LEFT, RIGHT };
 
@@ -37,11 +38,24 @@ public:
   Camera(glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f),
          glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f), float yaw = YAW,
          float pitch = PITCH)
-      : Front(glm::vec3(0.0f, 0.0f, -1.0f)), MovementSpeed(SPEED), Zoom(ZOOM) {
+      : Front(glm::vec3(0.0f, 0.0f, -1.0f)), MovementSpeed(SPEED),
+        MouseSensitivity(SENSITIVITY), Zoom(ZOOM) {
     Position = position;
-    Up = up;
+    WorldUp = up;
     Yaw = yaw;
     Pitch = pitch;
+    updateCameraVectors();
+  }
+
+  Camera(float posX, float posY, float posZ, float upX, float upY, float upZ,
+         float yaw, float pitch)
+      : Front(glm::vec3(0.0f, 0.0f, -1.0f)), MovementSpeed(SPEED),
+        MouseSensitivity(SENSITIVITY), Zoom(ZOOM) {
+    Position = glm::vec3(posX, posY, posZ);
+    WorldUp = glm::vec3(upX, upY, upZ);
+    Yaw = yaw;
+    Pitch = pitch;
+    updateCameraVectors();
   }
 
   glm::mat4 GetViewMatrix() {
@@ -71,6 +85,7 @@ public:
 
     Yaw += xoffset;
     Pitch += yoffset;
+    printf("%f, %f\n", Yaw, Pitch);
 
     if (constrainPitch) {
       if (Pitch > 89.0f) {
@@ -80,7 +95,6 @@ public:
         Pitch = -89.0f;
       }
     }
-
     updateCameraVectors();
   }
 
