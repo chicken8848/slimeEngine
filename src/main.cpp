@@ -56,6 +56,10 @@ void mouse_callback(GLFWwindow *window, double xposIn, double yposIn) {
   ourCam.ProcessMouseMovement(xoffset, yoffset, true);
 }
 
+void scroll_callback(GLFWwindow *window, double xpos, double ypos) {
+  ourCam.ProcessMouseScroll(static_cast<float>(ypos));
+}
+
 // Processing Input
 void processInput(GLFWwindow *window) {
   if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -120,6 +124,7 @@ int main() {
   glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
   glfwSetCursorPosCallback(window, mouse_callback);
+  glfwSetScrollCallback(window, scroll_callback);
   glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
   float vertices[] = {

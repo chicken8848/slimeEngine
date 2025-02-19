@@ -85,7 +85,6 @@ public:
 
     Yaw += xoffset;
     Pitch += yoffset;
-    printf("%f, %f\n", Yaw, Pitch);
 
     if (constrainPitch) {
       if (Pitch > 89.0f) {
