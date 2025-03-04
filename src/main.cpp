@@ -30,7 +30,7 @@ float deltaTime = 0.0f; // Time between current frame and last frame
 float lastFrame = 0.0f;
 
 Camera ourCam = Camera();
-//bool first_mouse = true;
+bool first_mouse = true;
 //bool first_mouse = false;
 
 float lastX = SCR_WIDTH / 2.0f;
@@ -41,25 +41,25 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
   glViewport(0, 0, width, height);
 }
 
-//void mouse_callback(GLFWwindow *window, double xposIn, double yposIn) {
-//  float xpos = static_cast<float>(xposIn);
-//  float ypos = static_cast<float>(yposIn);
-//  if (first_mouse) {
-//    lastX = xpos;
-//    lastY = ypos;
-//    first_mouse = false;
-//  }
-//
-//  float xoffset = xpos - lastX;
-//  float yoffset = lastY - ypos;
-//  lastX = xpos;
-//  lastY = ypos;
-//  ourCam.ProcessMouseMovement(xoffset, yoffset, true);
-//}
+void mouse_callback(GLFWwindow *window, double xposIn, double yposIn) {
+  float xpos = static_cast<float>(xposIn);
+  float ypos = static_cast<float>(yposIn);
+  if (first_mouse) {
+    lastX = xpos;
+    lastY = ypos;
+    first_mouse = false;
+  }
 
-//void scroll_callback(GLFWwindow *window, double xpos, double ypos) {
-//  ourCam.ProcessMouseScroll(static_cast<float>(ypos));
-//}
+  float xoffset = xpos - lastX;
+  float yoffset = lastY - ypos;
+  lastX = xpos;
+  lastY = ypos;
+  ourCam.ProcessMouseMovement(xoffset, yoffset, true);
+}
+
+void scroll_callback(GLFWwindow *window, double xpos, double ypos) {
+  ourCam.ProcessMouseScroll(static_cast<float>(ypos));
+}
 
 // Processing Input
 void processInput(GLFWwindow *window) {
@@ -124,9 +124,9 @@ int main() {
   // tell GLFW to call this function on every window resize
   glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
-  //glfwSetCursorPosCallback(window, mouse_callback);
-  //glfwSetScrollCallback(window, scroll_callback);
-  //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+  glfwSetCursorPosCallback(window, mouse_callback);
+  glfwSetScrollCallback(window, scroll_callback);
+  glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
   float vertices[] = {
       -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, 0.5f,  -0.5f, -0.5f, 1.0f, 0.0f,
