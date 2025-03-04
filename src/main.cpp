@@ -30,7 +30,8 @@ float deltaTime = 0.0f; // Time between current frame and last frame
 float lastFrame = 0.0f;
 
 Camera ourCam = Camera();
-bool first_mouse = true;
+//bool first_mouse = true;
+//bool first_mouse = false;
 
 float lastX = SCR_WIDTH / 2.0f;
 float lastY = SCR_HEIGHT / 2.0f;
@@ -40,25 +41,25 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
   glViewport(0, 0, width, height);
 }
 
-void mouse_callback(GLFWwindow *window, double xposIn, double yposIn) {
-  float xpos = static_cast<float>(xposIn);
-  float ypos = static_cast<float>(yposIn);
-  if (first_mouse) {
-    lastX = xpos;
-    lastY = ypos;
-    first_mouse = false;
-  }
+//void mouse_callback(GLFWwindow *window, double xposIn, double yposIn) {
+//  float xpos = static_cast<float>(xposIn);
+//  float ypos = static_cast<float>(yposIn);
+//  if (first_mouse) {
+//    lastX = xpos;
+//    lastY = ypos;
+//    first_mouse = false;
+//  }
+//
+//  float xoffset = xpos - lastX;
+//  float yoffset = lastY - ypos;
+//  lastX = xpos;
+//  lastY = ypos;
+//  ourCam.ProcessMouseMovement(xoffset, yoffset, true);
+//}
 
-  float xoffset = xpos - lastX;
-  float yoffset = lastY - ypos;
-  lastX = xpos;
-  lastY = ypos;
-  ourCam.ProcessMouseMovement(xoffset, yoffset, true);
-}
-
-void scroll_callback(GLFWwindow *window, double xpos, double ypos) {
-  ourCam.ProcessMouseScroll(static_cast<float>(ypos));
-}
+//void scroll_callback(GLFWwindow *window, double xpos, double ypos) {
+//  ourCam.ProcessMouseScroll(static_cast<float>(ypos));
+//}
 
 // Processing Input
 void processInput(GLFWwindow *window) {
@@ -123,9 +124,9 @@ int main() {
   // tell GLFW to call this function on every window resize
   glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
-  glfwSetCursorPosCallback(window, mouse_callback);
-  glfwSetScrollCallback(window, scroll_callback);
-  glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+  //glfwSetCursorPosCallback(window, mouse_callback);
+  //glfwSetScrollCallback(window, scroll_callback);
+  //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
   float vertices[] = {
       -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, 0.5f,  -0.5f, -0.5f, 1.0f, 0.0f,
@@ -180,10 +181,11 @@ int main() {
                         (void *)(3 * sizeof(float)));
   glEnableVertexAttribArray(1);
 
-  Shader ourShader("/home/chicken8848/Documents/programming/slimeEngine/src/"
-                   "shaders/texture.vert",
-                   "/home/chicken8848/Documents/programming/slimeEngine/src/"
-                   "shaders/texture.frag");
+  //Shader ourShader("./src/shaders/texture.vert",
+  //                 "./src/shaders/texture.frag");
+
+  Shader ourShader("C:/Users/zq/Documents/GitHub/slimeEngine/src/shaders/texture.vert",
+      "C:/Users/zq/Documents/GitHub/slimeEngine/src/shaders/texture.frag");
 
   unsigned int texture1, texture2;
   glGenTextures(1, &texture1);
@@ -197,8 +199,7 @@ int main() {
 
   int width, height, nrChannels;
   stbi_set_flip_vertically_on_load(true);
-  unsigned char *data = stbi_load("/home/chicken8848/Documents/programming/"
-                                  "slimeEngine/src/textures/container.jpg",
+  unsigned char *data = stbi_load("C:/Users/zq/Documents/GitHub/slimeEngine/src/textures/container.jpg",
                                   &width, &height, &nrChannels, 0);
 
   if (data) {
@@ -220,8 +221,7 @@ int main() {
                   GL_LINEAR_MIPMAP_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-  data = stbi_load("/home/chicken8848/Documents/programming/"
-                   "slimeEngine/src/textures/awesomeface.png",
+  data = stbi_load("C:/Users/zq/Documents/GitHub/slimeEngine/src/textures/awesomeface.png",
                    &width, &height, &nrChannels, 0);
 
   if (data) {
