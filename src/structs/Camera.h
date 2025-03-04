@@ -76,6 +76,8 @@ public:
     if (direction == LEFT) {
       Position -= Right * velocity;
     }
+    //std::cout << "Position of camera: (" << Position.x << ", " << Position.y << ", " << Position.z << ")" << std::endl;
+
   }
 
   void ProcessMouseMovement(float xoffset, float yoffset,
