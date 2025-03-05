@@ -20,6 +20,9 @@ link_directories(${CMAKE_SOURCE_DIR}/lib/)
 
 set(SRC_FILES src/main.cpp src/stb_image.cpp)
 
+configure_file(configuration/root_directory.h.in configuration/root_directory.h)
+include_directories(${CMAKE_BINARY_DIR}/configuration)
+
 add_library(GLAD STATIC "src/glad.c")
 set(LIBS GLAD)
 target_include_directories(GLAD PUBLIC ${CMAKE_SOURCE_DIR}/include)

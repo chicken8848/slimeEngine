@@ -11,9 +11,13 @@
 #include <iostream>
 #include <stdio.h>
 
-#include "stb_image.h"
 #include "structs/Camera.h"
 #include "structs/Shader.h"
+#include "structs/stb_image.h"
+
+#include "structs/Model.h"
+
+#include <learnopengl/filesystem.h>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -185,61 +189,12 @@ int main() {
                    "/home/chicken8848/Documents/programming/slimeEngine/src/"
                    "shaders/texture.frag");
 
-  unsigned int texture1, texture2;
-  glGenTextures(1, &texture1);
-  glBindTexture(GL_TEXTURE_2D, texture1);
-
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
-                  GL_LINEAR_MIPMAP_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-  int width, height, nrChannels;
-  stbi_set_flip_vertically_on_load(true);
-  unsigned char *data = stbi_load("/home/chicken8848/Documents/programming/"
-                                  "slimeEngine/src/textures/container.jpg",
-                                  &width, &height, &nrChannels, 0);
-
-  if (data) {
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB,
-                 GL_UNSIGNED_BYTE, data);
-    glGenerateMipmap(GL_TEXTURE_2D);
-  } else {
-    printf("%s", "Failed to load texture");
-  }
-
-  stbi_image_free(data);
-
-  glGenTextures(1, &texture2);
-  glBindTexture(GL_TEXTURE_2D, texture2);
-
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
-                  GL_LINEAR_MIPMAP_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-  data = stbi_load("/home/chicken8848/Documents/programming/"
-                   "slimeEngine/src/textures/awesomeface.png",
-                   &width, &height, &nrChannels, 0);
-
-  if (data) {
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA,
-                 GL_UNSIGNED_BYTE, data);
-    glGenerateMipmap(GL_TEXTURE_2D);
-  } else {
-    printf("Failed to load texture\n");
-  }
-
-  stbi_image_free(data);
-
-  ourShader.use();
-  glUniform1i(glGetUniformLocation(ourShader.ID, "texture1"), 0);
-  ourShader.setInt("texture2", 1);
+  Model testModel(FileSystem::getPath("assets/backpack/backpack.obj"));
 
   glEnable(GL_BLEND); // you enable blending function
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+  stbi_set_flip_vertically_on_load(true);
 
   // Render loop
   while (!glfwWindowShouldClose(window)) {
@@ -254,12 +209,6 @@ int main() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     // use the program
 
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, texture1);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, texture2);
-
-    ourShader.setFloat("mixture", mixValue);
     ourShader.use();
 
     glm::mat4 projection = glm::mat4(1.0f);
@@ -271,24 +220,18 @@ int main() {
     view = ourCam.GetViewMatrix();
     ourShader.setMat4("view", view);
 
-    glBindVertexArray(VAO);
-    for (int i = 0; i < 10; i++) {
-      glm::mat4 model = glm::mat4(1.0f);
-      model = glm::translate(model, cubePositions[i]);
-      float angle = 20.0f * i;
-      if (i == 0) {
-        angle = 20.0f;
-      }
-      if (i % 2 == 0) {
-        angle *= glfwGetTime();
-      }
-      model =
-          glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
-      ourShader.setMat4("model", model);
-      glDrawArrays(GL_TRIANGLES, 0, 36);
-    }
-
-    //  glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+    glm::mat4 model = glm::mat4(1.0f);
+    model = glm::translate(
+        model,
+        glm::vec3(
+            0.0f, 0.0f,
+            0.0f)); // translate it down so it's at the center of the scene
+    model = glm::scale(
+        model,
+        glm::vec3(1.0f, 1.0f,
+                  1.0f)); // it's a bit too big for our scene, so scale it down
+    ourShader.setMat4("model", model);
+    testModel.Draw(ourShader);
 
     glfwSwapBuffers(window);
     glfwPollEvents();
