@@ -184,6 +184,8 @@ int main() {
                         (void *)(3 * sizeof(float)));
   glEnableVertexAttribArray(1);
 
+  stbi_set_flip_vertically_on_load(true);
+
   Shader ourShader("/home/chicken8848/Documents/programming/slimeEngine/src/"
                    "shaders/texture.vert",
                    "/home/chicken8848/Documents/programming/slimeEngine/src/"
@@ -193,8 +195,6 @@ int main() {
 
   glEnable(GL_BLEND); // you enable blending function
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-  stbi_set_flip_vertically_on_load(true);
 
   // Render loop
   while (!glfwWindowShouldClose(window)) {
@@ -237,10 +237,6 @@ int main() {
     glfwPollEvents();
   }
 
-  glDeleteVertexArrays(1, &VAO);
-  glDeleteBuffers(1, &VBO);
-
   glfwTerminate();
-
   return 0;
 }
