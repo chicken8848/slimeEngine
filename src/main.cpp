@@ -129,7 +129,7 @@ int main() {
 
   glfwSetCursorPosCallback(window, mouse_callback);
   glfwSetScrollCallback(window, scroll_callback);
-  glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+  //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
   float vertices[] = {
       -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, 0.5f,  -0.5f, -0.5f, 1.0f, 0.0f,
@@ -186,12 +186,15 @@ int main() {
 
   stbi_set_flip_vertically_on_load(true);
 
-  Shader ourShader("/home/chicken8848/Documents/programming/slimeEngine/src/"
-                   "shaders/texture.vert",
-                   "/home/chicken8848/Documents/programming/slimeEngine/src/"
-                   "shaders/texture.frag");
+  //Shader ourShader("/home/chicken8848/Documents/programming/slimeEngine/src/"
+  //                 "shaders/texture.vert",
+  //                 "/home/chicken8848/Documents/programming/slimeEngine/src/"
+  //                 "shaders/texture.frag");
+  Shader ourShader("C:/Users/zq/Documents/GitHub/slimeEngine/src/shaders/texture.vert",
+      "C:/Users/zq/Documents/GitHub/slimeEngine/src/shaders/texture.frag");
 
   Model testModel(FileSystem::getPath("assets/backpack/backpack.obj"));
+  //Model testModel(FileSystem::getPath("C:/Users/zq/Documents/GitHub/slimeEngine/assets/backpack/backpack.obj"));
 
   glEnable(GL_BLEND); // you enable blending function
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
