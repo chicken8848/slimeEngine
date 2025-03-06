@@ -33,7 +33,7 @@ glm::mat4 view;
 float deltaTime = 0.0f; // Time between current frame and last frame
 float lastFrame = 0.0f;
 
-Camera ourCam = Camera();
+Camera ourCam = Camera(glm::vec3(0.0f, 0.0f, 5.0f));
 bool first_mouse = true;
 
 float lastX = SCR_WIDTH / 2.0f;
@@ -129,7 +129,7 @@ int main() {
 
   glfwSetCursorPosCallback(window, mouse_callback);
   glfwSetScrollCallback(window, scroll_callback);
-  //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+  glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
   float vertices[] = {
       -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, 0.5f,  -0.5f, -0.5f, 1.0f, 0.0f,
@@ -193,8 +193,8 @@ int main() {
   Shader ourShader("C:/Users/zq/Documents/GitHub/slimeEngine/src/shaders/texture.vert",
       "C:/Users/zq/Documents/GitHub/slimeEngine/src/shaders/texture.frag");
 
-  Model testModel(FileSystem::getPath("assets/backpack/backpack.obj"));
-  //Model testModel(FileSystem::getPath("C:/Users/zq/Documents/GitHub/slimeEngine/assets/backpack/backpack.obj"));
+  //Model testModel(FileSystem::getPath("assets/backpack/backpack.obj"));
+  Model testModel(FileSystem::getPath("assets/pudding/pudding.obj"));
 
   glEnable(GL_BLEND); // you enable blending function
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
