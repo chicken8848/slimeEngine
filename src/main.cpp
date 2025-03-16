@@ -194,7 +194,8 @@ int main() {
       "C:/Users/zq/Documents/GitHub/slimeEngine/src/shaders/texture.frag");
 
   //Model testModel(FileSystem::getPath("assets/backpack/backpack.obj"));
-  Model testModel(FileSystem::getPath("assets/pudding/pudding.obj"));
+  //Model testModel(FileSystem::getPath("assets/pudding/pudding.obj"));
+  Model testModel(FileSystem::getPath("assets/pudding/tetrapudding.obj"));
 
   glEnable(GL_BLEND); // you enable blending function
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
