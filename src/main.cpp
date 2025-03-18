@@ -135,7 +135,7 @@ int main() {
   glfwSetScrollCallback(window, scroll_callback);
   glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-  glm::vec3 velocity = glm::vec3(0.0f, 0.0f, 0.0f);
+  glm::vec3 velocity = glm::vec3(1.0f, 0.0f, 0.0f);
 
 
   glEnable(GL_DEPTH_TEST);
@@ -212,8 +212,8 @@ int main() {
     velocity += gravity * deltaTime;
     
     glm::mat4 new_pos = glm::translate(model, velocity * deltaTime);
-    if (new_pos[3][1] < -10) {
-        velocity *= -1;
+    if (new_pos[3][1] < -3) {
+        velocity.y *= -1;
     }
 
     model = new_pos;
