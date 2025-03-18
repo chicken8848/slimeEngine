@@ -30,7 +30,7 @@ include_directories(${CMAKE_SOURCE_DIR}/include)
 
 link_directories(${CMAKE_SOURCE_DIR}/lib/)
 
-set(SRC_FILES src/main.cpp src/stb_image.cpp src/MeshLoader.cpp src/SoftBody.cpp)
+set(SRC_FILES src/main.cpp src/stb_image.cpp)
 
 configure_file(configuration/root_directory.h.in configuration/root_directory.h)
 include_directories(${CMAKE_BINARY_DIR}/configuration)
