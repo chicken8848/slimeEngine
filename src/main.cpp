@@ -17,6 +17,8 @@
 
 #include "structs/Model.h"
 
+#include "structs/SoftBody.h"
+
 #include <learnopengl/filesystem.h>
 
 #include <glm/glm.hpp>
@@ -169,6 +171,10 @@ int main() {
   //Model testModel(FileSystem::getPath("assets/backpack/backpack.obj"));
   //Model testModel(FileSystem::getPath("assets/pudding/pudding.obj"));
   Model testModel(FileSystem::getPath("assets/pudding/tetrapudding.obj"));
+
+  SoftBody softBody;
+  softBody.loadMesh(FileSystem::getPath("assets/pudding/pudding.1.node"), FileSystem::getPath("assets/pudding/pudding.1.ele"));
+  softBody.simulate();
 
   glEnable(GL_BLEND); // you enable blending function
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
