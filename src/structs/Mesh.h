@@ -35,13 +35,17 @@ public:
   vector<Vertex> vertices;
   vector<unsigned int> indices;
   vector<Texture> textures;
+
+  std::vector<glm::vec4> tetIds;
+
   unsigned int VAO;
 
   Mesh(vector<Vertex> vertices, vector<unsigned int> indices,
-       vector<Texture> textures) {
+       vector<Texture> textures, std::vector<glm::vec4> tetIds) {
     this->vertices = vertices;
     this->indices = indices;
     this->textures = textures;
+    this->tetIds = tetIds;
 
     setupMesh();
   }

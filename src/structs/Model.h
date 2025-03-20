@@ -68,10 +68,36 @@ private:
     }
   }
 
+  std::vector<glm::vec4> loadTetrahedra(const std::string& filename) {
+      std::ifstream file(filename);
+      std::vector<glm::vec4> tets;
+
+      if (!file) {
+          std::cerr << "Error: Cannot open file " << filename << std::endl;
+          return tets;
+      }
+
+      int numTets, nodesPerTet, attr;
+      file >> numTets >> nodesPerTet >> attr;
+
+      for (int i = 0; i < numTets; ++i) {
+          int index;
+          glm::vec4 t;
+          file >> index >> t.x >> t.y >> t.z >> t.w;
+          tets.push_back(t);
+      }
+
+      return tets;
+  }
+
   Mesh processMesh(aiMesh *mesh, const aiScene *scene) {
     vector<Vertex> vertices;
     vector<unsigned int> indices;
     vector<Texture> textures;
+
+    std::vector<glm::vec4> tetIds;
+
+    tetIds = loadTetrahedra("C:/Users/zq/Documents/GitHub/slimeEngine/assets/pudding/pudding.ele");
 
     for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
       Vertex vertex;
@@ -124,7 +150,7 @@ private:
         loadMaterialTextures(material, aiTextureType_AMBIENT, "texture_height");
     textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
 
-    return Mesh(vertices, indices, textures);
+    return Mesh(vertices, indices, textures, tetIds);
   }
 
   vector<Texture> loadMaterialTextures(aiMaterial *mat, aiTextureType type,

@@ -135,6 +135,11 @@ int main() {
   glfwSetScrollCallback(window, scroll_callback);
   glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
+  glm::vec3 pointLightPositions[] = {
+    glm::vec3(0.7f, 0.2f, 2.0f), glm::vec3(2.3f, -3.3f, -4.0f),
+    glm::vec3(-4.0f, 2.0f, -12.0f), glm::vec3(0.0f, 0.0f, -3.0f) };
+
+
   glm::vec3 velocity = glm::vec3(1.0f, 0.0f, 0.0f);
 
 
@@ -199,6 +204,15 @@ int main() {
     // use the program
 
     ourShader.use();
+
+    ourShader.setVec3("pointLights[0].position", pointLightPositions[0]);
+    ourShader.setVec3("pointLights[0].ambient", 0.05f, 0.05f, 0.05f);
+    ourShader.setVec3("pointLights[0].diffuse", 0.8f, 0.8f, 0.8f);
+    ourShader.setVec3("pointLights[0].specular", 1.0f, 1.0f, 1.0f);
+    ourShader.setFloat("pointLights[0].constant", 1.0f);
+    ourShader.setFloat("pointLights[0].linear", 0.09f);
+    ourShader.setFloat("pointLights[0].quadratic", 0.032f);
+
 
     glm::mat4 projection = glm::mat4(1.0f);
     projection =
