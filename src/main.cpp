@@ -204,7 +204,7 @@ int main() {
   ourShader.setFloat("pointLights[0].linear", 0.09f);
   ourShader.setFloat("pointLights[0].quadratic", 0.032f);
 
-  Model testModel(FileSystem::getPath("assets/backpack/backpack.obj"));
+  Model testModel(FileSystem::getPath("assets/pudding/tetrapudding.obj"));
 
   glEnable(GL_BLEND); // you enable blending function
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -223,6 +223,17 @@ int main() {
     // use the program
 
     ourShader.use();
+
+    ourShader.setVec3("spotLight.position", ourCam.Position);
+    ourShader.setVec3("spotLight.direction", ourCam.Front);
+    ourShader.setVec3("spotLight.ambient", 0.0f, 0.0f, 0.0f);
+    ourShader.setVec3("spotLight.diffuse", 1.0f, 1.0f, 1.0f);
+    ourShader.setVec3("spotLight.specular", 1.0f, 1.0f, 1.0f);
+    ourShader.setFloat("spotLight.constant", 1.0f);
+    ourShader.setFloat("spotLight.linear", 0.09f);
+    ourShader.setFloat("spotLight.quadratic", 0.032f);
+    ourShader.setFloat("spotLight.cutOff", glm::cos(glm::radians(12.5f)));
+    ourShader.setFloat("spotLight.outerCutOff", glm::cos(glm::radians(15.0f)));
 
     glm::mat4 projection = glm::mat4(1.0f);
     projection =

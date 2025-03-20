@@ -55,14 +55,20 @@ public:
       glActiveTexture(GL_TEXTURE0 + i);
       string number;
       string name = textures[i].type;
-      if (name == "texture_diffuse")
+      if (name == "texture_diffuse") {
         number = std::to_string(diffuseNr++);
-      else if (name == "texture_specular")
+        shader.setInt("material.diffuse", i);
+      } else if (name == "texture_specular") {
         number = std::to_string(specularNr++);
-      else if (name == "texture_normal")
+        shader.setInt("material.specular", i);
+      } else if (name == "texture_normal") {
         number = std::to_string(normalNr++);
-      else if (name == "texture_height")
+        shader.setInt("material.normal", i);
+      } else if (name == "texture_height") {
         number = std::to_string(heightNr++);
+        shader.setInt("material.height", i);
+      }
+      shader.setFloat("material.shininess", 64.0f);
 
       glUniform1i(glGetUniformLocation(shader.ID, (name + number).c_str()), i);
       glBindTexture(GL_TEXTURE_2D, textures[i].id);

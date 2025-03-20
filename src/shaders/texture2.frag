@@ -9,13 +9,14 @@ uniform vec3 objectColor;
 uniform vec3 lightColor;
 uniform vec3 viewPos;
 
-uniform sampler2D texture_diffuse1;
 
 uniform sampler2D emission;
 
 struct Material {
     sampler2D diffuse;
     sampler2D specular;
+    sampler2D height;
+    sampler2D normal;
     float shininess;
 };
 
