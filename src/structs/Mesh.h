@@ -2,12 +2,9 @@
 #define MESH_H
 
 #include <glad/glad.h> // holds all OpenGL type declarations
-
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-
 #include "Shader.h"
-
 #include <string>
 #include <vector>
 using namespace std;
@@ -15,110 +12,135 @@ using namespace std;
 #define MAX_BONE_INFLUENCE 4
 
 struct Vertex {
-  glm::vec3 Position;
-  glm::vec3 Normal;
-  glm::vec2 TexCoords;
-  glm::vec3 Tangent;
-  glm::vec3 Bitangent;
-  int m_BoneIDs[MAX_BONE_INFLUENCE];
-  float m_Weights[MAX_BONE_INFLUENCE];
+    glm::vec3 Position;
+    glm::vec3 Normal;
+    glm::vec2 TexCoords;
+    glm::vec3 Tangent;
+    glm::vec3 Bitangent;
+    int m_BoneIDs[MAX_BONE_INFLUENCE];
+    float m_Weights[MAX_BONE_INFLUENCE];
+    glm::vec3 Velocity; // Added for physics simulation
 };
 
 struct Texture {
-  unsigned int id;
-  string type;
-  string path;
+    unsigned int id;
+    string type;
+    string path;
+};
+
+// Define a constraint struct
+struct Constraint {
+    int v1, v2; // Indices of the two vertices involved in the constraint
+    float restLength; // The desired distance between the vertices
 };
 
 class Mesh {
 public:
-  vector<Vertex> vertices;
-  vector<unsigned int> indices;
-  vector<Texture> textures;
+    vector<Vertex> vertices;
+    vector<unsigned int> indices;
+    vector<Texture> textures;
+    std::vector<glm::vec4> tetIds;
+    std::vector<Constraint> constraints; // Added for XPBD constraints
 
-  std::vector<glm::vec4> tetIds;
+    unsigned int VAO;
 
-  unsigned int VAO;
-
-  Mesh(vector<Vertex> vertices, vector<unsigned int> indices,
-       vector<Texture> textures, std::vector<glm::vec4> tetIds) {
-    this->vertices = vertices;
-    this->indices = indices;
-    this->textures = textures;
-    this->tetIds = tetIds;
-
-    setupMesh();
-  }
-
-  void Draw(Shader &shader) {
-    unsigned int diffuseNr = 1;
-    unsigned int specularNr = 1;
-    unsigned int normalNr = 1;
-    unsigned int heightNr = 1;
-    for (unsigned int i = 0; i < textures.size(); i++) {
-      glActiveTexture(GL_TEXTURE0 + i);
-      string number;
-      string name = textures[i].type;
-      if (name == "texture_diffuse")
-        number = std::to_string(diffuseNr++);
-      else if (name == "texture_specular")
-        number = std::to_string(specularNr++);
-      else if (name == "texture_normal")
-        number = std::to_string(normalNr++);
-      else if (name == "texture_height")
-        number = std::to_string(heightNr++);
-
-      glUniform1i(glGetUniformLocation(shader.ID, (name + number).c_str()), i);
-      glBindTexture(GL_TEXTURE_2D, textures[i].id);
+    Mesh(vector<Vertex> vertices, vector<unsigned int> indices,
+        vector<Texture> textures, std::vector<glm::vec4> tetIds)
+        : vertices(vertices), indices(indices), textures(textures), tetIds(tetIds) {
+        setupMesh();
+        setupConstraints(); // Initialize constraints
     }
 
-    glBindVertexArray(VAO);
-    glDrawElements(GL_TRIANGLES, static_cast<unsigned int>(indices.size()),
-                   GL_UNSIGNED_INT, 0);
-    glBindVertexArray(0);
+    void Draw(Shader& shader) {
+        unsigned int diffuseNr = 1;
+        unsigned int specularNr = 1;
+        unsigned int normalNr = 1;
+        unsigned int heightNr = 1;
+        for (unsigned int i = 0; i < textures.size(); i++) {
+            glActiveTexture(GL_TEXTURE0 + i);
+            string number;
+            string name = textures[i].type;
+            if (name == "texture_diffuse")
+                number = std::to_string(diffuseNr++);
+            else if (name == "texture_specular")
+                number = std::to_string(specularNr++);
+            else if (name == "texture_normal")
+                number = std::to_string(normalNr++);
+            else if (name == "texture_height")
+                number = std::to_string(heightNr++);
 
-    glActiveTexture(GL_TEXTURE0);
-  }
+            glUniform1i(glGetUniformLocation(shader.ID, (name + number).c_str()), i);
+            glBindTexture(GL_TEXTURE_2D, textures[i].id);
+        }
 
-private:
-  unsigned int VBO, EBO;
+        glBindVertexArray(VAO);
+        glDrawElements(GL_TRIANGLES, static_cast<unsigned int>(indices.size()),
+            GL_UNSIGNED_INT, 0);
+        glBindVertexArray(0);
 
-  void setupMesh() {
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glGenBuffers(1, &EBO);
+        glActiveTexture(GL_TEXTURE0);
+    }
 
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex),
-                 &vertices[0], GL_STATIC_DRAW);
+    // Function to initialize constraints (e.g., distance constraints)
+    void setupConstraints() {
+        // Loop through all edges (pairs of vertices) and create constraints
+        for (size_t i = 0; i < indices.size(); i += 3) {
+            int v1 = indices[i];
+            int v2 = indices[i + 1];
+            int v3 = indices[i + 2];
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int),
-                 &indices[0], GL_STATIC_DRAW);
+            // Add constraints for each edge of the triangle
+            addConstraint(v1, v2);
+            addConstraint(v2, v3);
+            addConstraint(v3, v1);
+        }
+    }
 
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
-                          (void *)offsetof(Vertex, Normal));
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex),
-                          (void *)offsetof(Vertex, TexCoords));
-    glEnableVertexAttribArray(3);
-    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
-                          (void *)offsetof(Vertex, Tangent));
-    glEnableVertexAttribArray(4);
-    glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
-                          (void *)offsetof(Vertex, Bitangent));
-    glEnableVertexAttribArray(5);
-    glVertexAttribIPointer(5, 4, GL_INT, sizeof(Vertex),
-                           (void *)offsetof(Vertex, m_BoneIDs));
-    glEnableVertexAttribArray(6);
-    glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex),
-                          (void *)offsetof(Vertex, m_Weights));
-    glBindVertexArray(0);
-  }
+    // Function to add a distance constraint between two vertices
+    void addConstraint(int v1, int v2) {
+        float restLength = glm::length(vertices[v1].Position - vertices[v2].Position);
+        constraints.push_back({ v1, v2, restLength });
+    }
+
+//private:
+    unsigned int VBO, EBO;
+
+    void setupMesh() {
+        glGenVertexArrays(1, &VAO);
+        glGenBuffers(1, &VBO);
+        glGenBuffers(1, &EBO);
+
+        glBindVertexArray(VAO);
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex),
+            &vertices[0], GL_STATIC_DRAW);
+
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int),
+            &indices[0], GL_STATIC_DRAW);
+
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+            (void*)offsetof(Vertex, Normal));
+        glEnableVertexAttribArray(2);
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+            (void*)offsetof(Vertex, TexCoords));
+        glEnableVertexAttribArray(3);
+        glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+            (void*)offsetof(Vertex, Tangent));
+        glEnableVertexAttribArray(4);
+        glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+            (void*)offsetof(Vertex, Bitangent));
+        glEnableVertexAttribArray(5);
+        glVertexAttribIPointer(5, 4, GL_INT, sizeof(Vertex),
+            (void*)offsetof(Vertex, m_BoneIDs));
+        glEnableVertexAttribArray(6);
+        glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+            (void*)offsetof(Vertex, m_Weights));
+        glBindVertexArray(0);
+    }
 };
 
 #endif
