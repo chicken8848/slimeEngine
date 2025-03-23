@@ -68,6 +68,28 @@ private:
         }
     }
 
+    std::vector<glm::vec3> loadNodes(const std::string& filename) {
+        std::ifstream file(filename);
+        std::vector<glm::vec3> nodes;
+
+        if (!file) {
+            std::cerr << "Error opening file: " << filename << std::endl;
+            return nodes;
+        }
+
+        int numNodes, dim, attr, boundary;
+        file >> numNodes >> dim >> attr >> boundary; // Read header
+
+        for (int i = 0; i < numNodes; ++i) {
+            int index;
+            glm::vec3 v;
+            file >> index >> v.x >> v.y >> v.z;
+            nodes.push_back(v);
+        }
+
+        return nodes;
+    }
+
     // Load tetrahedra data from a file
     std::vector<glm::vec4> loadTetrahedra(const std::string& filename) {
         std::ifstream file(filename);
@@ -98,8 +120,10 @@ private:
         vector<Texture> textures;
 
         // Load tetrahedra data
-        std::vector<glm::vec4> tetIds = loadTetrahedra("C:/Users/zq/Documents/GitHub/slimeEngine/assets/pudding/pudding.ele");
+        //std::vector<glm::vec4> tetIds = loadTetrahedra("C:/Users/zq/Documents/GitHub/slimeEngine/assets/pudding/pudding.ele");
+        std::vector<glm::vec4> tetIds = loadTetrahedra("C:/Users/zq/Downloads/tetgen1.6.0/tetgen1.6.0/build/Debug/puddings/pudding.1.ele");
 
+        vector<glm::vec3> verticespos = loadNodes("C:/Users/zq/Downloads/tetgen1.6.0/tetgen1.6.0/build/Debug/puddings/pudding.1.node");
         // Process vertices
         for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
             Vertex vertex;
@@ -109,7 +133,9 @@ private:
             vector.x = mesh->mVertices[i].x;
             vector.y = mesh->mVertices[i].y;
             vector.z = mesh->mVertices[i].z;
+
             vertex.Position = vector;
+            //vertex.Position = verticespos[i];
 
             // Normal
             if (mesh->HasNormals()) {

@@ -29,27 +29,101 @@ struct Texture {
 };
 
 // Define a constraint struct
-struct Constraint {
+struct DistanceConstraint {
     int v1, v2; // Indices of the two vertices involved in the constraint
     float restLength; // The desired distance between the vertices
 };
 
+struct VolumeConstraint {
+    int tetId;         // Index of the tetrahedron in tetIds
+    float restVolume;  // Rest volume of the tetrahedron
+};
 class Mesh {
 public:
     vector<Vertex> vertices;
     vector<unsigned int> indices;
     vector<Texture> textures;
-    std::vector<glm::vec4> tetIds;
-    std::vector<Constraint> constraints; // Added for XPBD constraints
+    std::vector<glm::vec4> tetIds; // Tetrahedra vertex indices
+    std::vector<DistanceConstraint> distanceConstraints; // Volume constraints
+    std::vector<VolumeConstraint> volumeConstraints; // Volume constraints
 
-    unsigned int VAO;
-
+    // Constructor
     Mesh(vector<Vertex> vertices, vector<unsigned int> indices,
         vector<Texture> textures, std::vector<glm::vec4> tetIds)
         : vertices(vertices), indices(indices), textures(textures), tetIds(tetIds) {
         setupMesh();
-        setupConstraints(); // Initialize constraints
+        setupVolumeConstraints(); // Initialize volume constraints
     }
+
+    // Function to initialize volume constraints
+    void setupVolumeConstraints() {
+        for (size_t i = 0; i < tetIds.size(); i++) {
+            addVolumeConstraint(i);
+        }
+    }
+
+    // Function to add a volume constraint for a tetrahedron
+    void addVolumeConstraint(int tetId) {
+        glm::vec4 tet = tetIds[tetId];
+        Vertex& v1 = vertices[tet.x];
+        Vertex& v2 = vertices[tet.y];
+        Vertex& v3 = vertices[tet.z];
+        Vertex& v4 = vertices[tet.w];
+
+        glm::vec3 edge1 = v2.Position - v1.Position;
+        glm::vec3 edge2 = v3.Position - v1.Position;
+        glm::vec3 edge3 = v4.Position - v1.Position;
+
+        // Calculate the signed volume
+        float signedVolume = glm::dot(edge1, glm::cross(edge2, edge3)) / 6.0f;
+
+        // Use the absolute value for the rest volume
+        //float restVolume = std::abs(signedVolume);
+        float restVolume = signedVolume;
+        //float restVolume = 10.0f;
+
+        // Print the rest volume for debugging
+        std::cout << "Rest volume for tetrahedron " << tetId << ": " << restVolume << std::endl;
+
+        // Add the volume constraint
+        volumeConstraints.push_back({ tetId, restVolume });
+    }
+
+    // Function to solve volume constraints
+    void solveVolumeConstraints() {
+        for (auto& constraint : volumeConstraints) {
+            glm::vec4 tet = tetIds[constraint.tetId];
+            Vertex& v1 = vertices[tet.x];
+            Vertex& v2 = vertices[tet.y];
+            Vertex& v3 = vertices[tet.z];
+            Vertex& v4 = vertices[tet.w];
+
+            glm::vec3 edge1 = v2.Position - v1.Position;
+            glm::vec3 edge2 = v3.Position - v1.Position;
+            glm::vec3 edge3 = v4.Position - v1.Position;
+
+            float currentVolume = glm::dot(edge1, glm::cross(edge2, edge3)) / 6.0f;
+            float volumeDifference = currentVolume - constraint.restVolume;
+
+            glm::vec3 gradient1 = glm::cross(edge2, edge3) / 6.0f;
+            glm::vec3 gradient2 = glm::cross(edge3, edge1) / 6.0f;
+            glm::vec3 gradient3 = glm::cross(edge1, edge2) / 6.0f;
+            glm::vec3 gradient4 = -(gradient1 + gradient2 + gradient3);
+
+            float stiffness = 100.0f; // Adjust stiffness as needed
+            glm::vec3 correction = stiffness * volumeDifference * gradient1;
+            //glm::vec3 correction = glm::vec3(100.0f, 100.0f, 100.0f);
+            v1.Position += correction;
+            v2.Position += stiffness * volumeDifference * gradient2;
+            v3.Position += stiffness * volumeDifference * gradient3;
+            v4.Position += stiffness * volumeDifference * gradient4;
+        }
+
+
+    
+
+ 
+};
 
     void Draw(Shader& shader) {
         unsigned int diffuseNr = 1;
@@ -79,30 +153,10 @@ public:
         glBindVertexArray(0);
 
         glActiveTexture(GL_TEXTURE0);
-    }
-
-    // Function to initialize constraints (e.g., distance constraints)
-    void setupConstraints() {
-        // Loop through all edges (pairs of vertices) and create constraints
-        for (size_t i = 0; i < indices.size(); i += 3) {
-            int v1 = indices[i];
-            int v2 = indices[i + 1];
-            int v3 = indices[i + 2];
-
-            // Add constraints for each edge of the triangle
-            addConstraint(v1, v2);
-            addConstraint(v2, v3);
-            addConstraint(v3, v1);
-        }
-    }
-
-    // Function to add a distance constraint between two vertices
-    void addConstraint(int v1, int v2) {
-        float restLength = glm::length(vertices[v1].Position - vertices[v2].Position);
-        constraints.push_back({ v1, v2, restLength });
-    }
+    };
 
 //private:
+    unsigned int VAO;
     unsigned int VBO, EBO;
 
     void setupMesh() {

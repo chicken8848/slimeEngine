@@ -27,7 +27,7 @@ float lastX = SCR_WIDTH / 2.0f; // Last mouse X position
 float lastY = SCR_HEIGHT / 2.0f; // Last mouse Y position
 
 // Physics constants
-const float gravity = -9.8f; // Gravity
+const float gravity = -0.8f; // Gravity
 const float groundY = -2.0f; // Ground level
 const float damping = 0.99f; // Velocity damping
 const int constraintIterations = 5; // Number of constraint iterations
@@ -38,20 +38,20 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn);
 void scroll_callback(GLFWwindow* window, double xpos, double ypos);
 void processInput(GLFWwindow* window);
 
-// Function to move all vertices using XPBD
 void simulateSoftBody(Model& model, float deltaTime) {
-    // Apply gravity and update velocities
+    // Apply gravity
     for (auto& mesh : model.meshes) {
         for (auto& vertex : mesh.vertices) {
-            vertex.Velocity += glm::vec3(0.0f, gravity * deltaTime, 0.0f); // Apply gravity
-            vertex.Position += vertex.Velocity * deltaTime; // Update position
+            vertex.Velocity += glm::vec3(0.0f, gravity * deltaTime, 0.0f);
+            vertex.Position += vertex.Velocity * deltaTime;
         }
     }
 
     // Solve constraints iteratively
     for (int i = 0; i < constraintIterations; i++) {
         for (auto& mesh : model.meshes) {
-            for (auto& constraint : mesh.constraints) {
+            // Solve distance constraints
+            for (auto& constraint : mesh.distanceConstraints) {
                 Vertex& v1 = mesh.vertices[constraint.v1];
                 Vertex& v2 = mesh.vertices[constraint.v2];
 
@@ -63,6 +63,9 @@ void simulateSoftBody(Model& model, float deltaTime) {
                 v1.Position += correction;
                 v2.Position -= correction;
             }
+
+            // Solve volume constraints
+            mesh.solveVolumeConstraints();
         }
     }
 
@@ -70,8 +73,8 @@ void simulateSoftBody(Model& model, float deltaTime) {
     for (auto& mesh : model.meshes) {
         for (auto& vertex : mesh.vertices) {
             if (vertex.Position.y < groundY) {
-                vertex.Position.y = groundY; // Move vertex to ground level
-                vertex.Velocity.y *= -0.5f; // Bounce (invert velocity and dampen)
+                vertex.Position.y = groundY;
+                vertex.Velocity.y *= -0.5f; // Bounce
                 vertex.Velocity *= damping; // Dampen velocity
             }
         }
