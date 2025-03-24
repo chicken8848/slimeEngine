@@ -47,12 +47,24 @@ struct Vertex {
 };
 
 struct Edge {
-  glm::vec2 edge_ids;
+  glm::vec2 particle_ids;
   float rest_length;
-  float edge_length;
   Edge(float start_particle, float end_particle, float rest_length) {
-    this->edge_ids = {start_particle, end_particle};
+    if (start_particle > end_particle)
+      particle_ids = {end_particle, start_particle};
+    else
+      particle_ids = {start_particle, end_particle};
     this->rest_length = rest_length;
+  }
+  bool operator==(const Edge &other) const {
+    return particle_ids == other.particle_ids;
+  }
+
+  bool operator<(const Edge &other) const {
+    if (particle_ids.x == other.particle_ids.x) {
+      return particle_ids.y < other.particle_ids.y;
+    } else
+      return particle_ids.x < other.particle_ids.x;
   }
 };
 
@@ -71,9 +83,11 @@ public:
 
   // soft body attributes
   vector<Particle> particles;
+  vector<Particle> particle_reset;
   unordered_map<int, vector<int>> particle_vertex_map;
   vector<glm::vec4> tetraIds;
   vector<Edge> edges;
+  float compliance;
 
   Mesh(vector<Vertex> vertices, vector<unsigned int> indices,
        vector<Texture> textures) {
@@ -82,10 +96,7 @@ public:
     this->textures = textures;
 
     setupMesh();
-    std::cout << "Mesh successfully loaded" << std::endl;
-    std::cout << "Vertices size: " << this->vertices.size() << std::endl;
-    std::cout << "Textures size: " << this->textures.size() << std::endl;
-    std::cout << "Indices size: " << this->indices.size() << std::endl;
+    this->compliance = 0.1f;
   }
 
   void addParticles(const string &path, float mass) {
@@ -108,7 +119,7 @@ public:
       this->particles.push_back(p);
     }
     f.close();
-
+    this->particle_reset = this->particles;
     create_particle_vertex_map();
     return;
   }
@@ -147,7 +158,89 @@ public:
     }
     f.close();
   }
-  void calcEdges();
+
+  void calcEdges() {
+    for (auto t : tetraIds) {
+      Particle &point0 = particles[t.x];
+      Particle &point1 = particles[t.y];
+      Particle &point2 = particles[t.z];
+      Particle &point3 = particles[t.w];
+      Edge edge0 = Edge(t.x, t.y, glm::length(point0.pos - point1.pos));
+      Edge edge1 = Edge(t.x, t.z, glm::length(point0.pos - point2.pos));
+      Edge edge2 = Edge(t.x, t.w, glm::length(point0.pos - point3.pos));
+      Edge edge3 = Edge(t.y, t.z, glm::length(point1.pos - point2.pos));
+      Edge edge4 = Edge(t.y, t.w, glm::length(point1.pos - point3.pos));
+      Edge edge5 = Edge(t.z, t.w, glm::length(point2.pos - point3.pos));
+      this->edges.push_back(edge0);
+      this->edges.push_back(edge1);
+      this->edges.push_back(edge2);
+      this->edges.push_back(edge3);
+      this->edges.push_back(edge4);
+      this->edges.push_back(edge5);
+    }
+
+    // Remove consecutive duplicates
+    std::sort(this->edges.begin(), this->edges.end());
+    auto last = std::unique(this->edges.begin(), this->edges.end());
+    this->edges.erase(last, this->edges.end());
+  }
+
+  void pre_solve(float dt, glm::vec3 gravity) {
+    for (int i = 0; i < particles.size(); i++) {
+      if (particles[i].inv_mass == 0)
+        continue;
+      particles[i].velocity = particles[i].velocity + (gravity * dt);
+      particles[i].prev_pos = particles[i].pos;
+      particles[i].pos = particles[i].pos + particles[i].velocity * dt;
+      if (particles[i].pos.y < 0) {
+        particles[i].pos = particles[i].prev_pos;
+        particles[i].pos.y = 0;
+      }
+    }
+  }
+
+  void post_solve(float dt) {
+    for (Particle &v : particles) {
+      if (1.0 / dt >= INFINITY)
+        continue;
+      v.velocity = (v.pos - v.prev_pos) * (static_cast<float>(1.0 / dt));
+    }
+  }
+
+  void solve_edges(float dt) {
+    double alpha = this->compliance / dt / dt;
+
+    for (Edge &e : this->edges) {
+      Particle &point0 = particles[e.particle_ids.x];
+      Particle &point1 = particles[e.particle_ids.y];
+      float w = point0.inv_mass + point1.inv_mass;
+      if (w == 0)
+        continue;
+      glm::vec3 diffVec = point0.pos - point1.pos;
+      float len = glm::length(diffVec);
+      if (len == 0)
+        continue;
+      glm::vec3 normalizedVec = diffVec * (1.0f / len);
+      float constraint_diff = len - e.rest_length;
+      float l = -constraint_diff / (w + alpha);
+      point0.pos = point0.pos + (normalizedVec * l * point0.inv_mass);
+      point1.pos = point1.pos + (normalizedVec * -l * point1.inv_mass);
+    }
+  }
+
+  void solve(float dt) { solve_edges(dt); }
+
+  void update(float dt, int substeps, glm::vec3 gravity) {
+    float sdt = dt / substeps;
+    for (int i = 0; i < substeps; i++) {
+      pre_solve(sdt, gravity);
+      solve(sdt);
+      post_solve(sdt);
+    }
+    update_vertices();
+  }
+
+  void reset() { this->particles = this->particle_reset; }
 
   void Draw(Shader &shader) {
     unsigned int diffuseNr = 1;
@@ -222,6 +315,18 @@ private:
     glEnableVertexAttribArray(6);
     glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex),
                           (void *)offsetof(Vertex, m_Weights));
+    glBindVertexArray(0);
+  }
+
+  void update_vertices() {
+    for (int i = 0; i < particles.size(); i++) {
+      for (auto &j : particle_vertex_map[i]) {
+        vertices[j].Position = particles[i].pos;
+      }
+    }
+    glBindVertexArray(VAO);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.size() * sizeof(Vertex),
+                    &vertices[0]);
     glBindVertexArray(0);
   }
 };
