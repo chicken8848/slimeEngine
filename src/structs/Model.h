@@ -113,6 +113,33 @@ private:
         return tets;
     }
 
+    // Load tetrahedra data from a file (generated from blender)
+    std::vector<glm::vec4> loadTetrahedra2(const std::string& filename) {
+        std::ifstream file(filename);
+        std::vector<glm::vec4> tets;
+
+        if (!file) {
+            std::cerr << "Error: Cannot open file " << filename << std::endl;
+            return tets;
+        }
+
+        // Read until the end of the file
+        while (file) {
+            //int index;
+            glm::vec4 t;
+
+            // Attempt to read the data
+            file >> t.x >> t.y >> t.z >> t.w;
+
+            // If the read was successful, add the tetrahedron to the vector
+            if (file) {
+                tets.push_back(t);
+            }
+        }
+
+        return tets;
+    }
+
     // Process a mesh and convert it to our Mesh class
     Mesh processMesh(aiMesh* mesh, const aiScene* scene) {
         vector<Vertex> vertices;
@@ -120,10 +147,10 @@ private:
         vector<Texture> textures;
 
         // Load tetrahedra data
-        //std::vector<glm::vec4> tetIds = loadTetrahedra("C:/Users/zq/Documents/GitHub/slimeEngine/assets/pudding/pudding.ele");
-        std::vector<glm::vec4> tetIds = loadTetrahedra("C:/Users/zq/Downloads/tetgen1.6.0/tetgen1.6.0/build/Debug/puddings/pudding.1.ele");
+        std::vector<glm::vec4> tetIds = loadTetrahedra2("C:/Users/zq/Documents/GitHub/slimeEngine/assets/pudding/pudding.ele");
+        //std::vector<glm::vec4> tetIds = loadTetrahedra("C:/Users/zq/Downloads/tetgen1.6.0/tetgen1.6.0/build/Debug/puddings/pudding.1.ele");
 
-        vector<glm::vec3> verticespos = loadNodes("C:/Users/zq/Downloads/tetgen1.6.0/tetgen1.6.0/build/Debug/puddings/pudding.1.node");
+        //vector<glm::vec3> verticespos = loadNodes("C:/Users/zq/Downloads/tetgen1.6.0/tetgen1.6.0/build/Debug/puddings/pudding.1.node");
         // Process vertices
         for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
             Vertex vertex;

@@ -27,9 +27,9 @@ float lastX = SCR_WIDTH / 2.0f; // Last mouse X position
 float lastY = SCR_HEIGHT / 2.0f; // Last mouse Y position
 
 // Physics constants
-const float gravity = -0.8f; // Gravity
+const float gravity = -0.5f; // Gravity
 const float groundY = -2.0f; // Ground level
-const float damping = 0.99f; // Velocity damping
+const float damping = 0.5f; // Velocity damping
 const int constraintIterations = 5; // Number of constraint iterations
 
 // Function declarations
@@ -57,15 +57,50 @@ void simulateSoftBody(Model& model, float deltaTime) {
 
                 glm::vec3 delta = v2.Position - v1.Position;
                 float distance = glm::length(delta);
-                float constraintValue = distance - constraint.restLength;
-                glm::vec3 correction = (constraintValue / distance) * delta * 0.5f;
 
-                v1.Position += correction;
-                v2.Position -= correction;
+                const float epsilon = 1e-6f;
+                float constraintValue = distance - constraint.restLength;
+                if (distance > epsilon && constraintValue > epsilon) {
+                    
+                    float stiffness = 0.5f; // Adjust as needed
+                    glm::vec3 correction = stiffness * (constraintValue / distance) * delta * 0.5f;
+                    //glm::vec3 correction = glm::vec3(10.0f, 10.0f, 10.0f);
+
+                    v1.Position += correction;
+                    v2.Position -= correction;
+                }
             }
 
             // Solve volume constraints
-            mesh.solveVolumeConstraints();
+            for (auto& constraint : mesh.volumeConstraints) {
+                glm::vec4 tet = mesh.tetIds[constraint.tetId];
+                Vertex& v1 = mesh.vertices[tet.x];
+                Vertex& v2 = mesh.vertices[tet.y];
+                Vertex& v3 = mesh.vertices[tet.z];
+                Vertex& v4 = mesh.vertices[tet.w];
+
+                glm::vec3 edge1 = v2.Position - v1.Position;
+                glm::vec3 edge2 = v3.Position - v1.Position;
+                glm::vec3 edge3 = v4.Position - v1.Position;
+
+                float currentVolume = std::abs(glm::dot(edge1, glm::cross(edge2, edge3)) / 6.0f);
+                float volumeDifference = currentVolume - constraint.restVolume;
+
+                glm::vec3 gradient1 = glm::normalize(glm::cross(edge2, edge3) / 6.0f);
+                glm::vec3 gradient2 = glm::normalize(glm::cross(edge3, edge1) / 6.0f);
+                glm::vec3 gradient3 = glm::normalize(glm::cross(edge1, edge2) / 6.0f);
+                glm::vec3 gradient4 = -(gradient1 + gradient2 + gradient3);
+
+                const float epsilon = 1e-6f;
+                float stiffness = 0.5f; // Adjust as needed
+                if (volumeDifference > epsilon) {
+                    
+                    v1.Position += stiffness * volumeDifference * gradient1;
+                    v2.Position += stiffness * volumeDifference * gradient2;
+                    v3.Position += stiffness * volumeDifference * gradient3;
+                    v4.Position += stiffness * volumeDifference * gradient4;
+                }
+            }
         }
     }
 
@@ -128,7 +163,8 @@ int main() {
 
     // Load model
     stbi_set_flip_vertically_on_load(true);
-    Model testModel(FileSystem::getPath("assets/pudding/tetrapudding.obj"));
+    //Model testModel(FileSystem::getPath("assets/pudding/tetrapudding.obj"));
+    Model testModel("C:/Users/zq/Desktop/school/CSD6/graphics/jiggle/tetrapuddingface.obj");
 
     // Set up point lights
     glm::vec3 pointLightPositions[] = {
@@ -148,6 +184,9 @@ int main() {
         // Calculate delta time
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
+        if (deltaTime < 1e-6f) {
+            deltaTime = 1e-6f;
+        }
         lastFrame = currentFrame;
 
         // Process input

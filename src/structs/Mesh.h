@@ -52,8 +52,40 @@ public:
         vector<Texture> textures, std::vector<glm::vec4> tetIds)
         : vertices(vertices), indices(indices), textures(textures), tetIds(tetIds) {
         setupMesh();
+        setupDistanceConstraints(); // Initialize distance constraints
         setupVolumeConstraints(); // Initialize volume constraints
     }
+
+    // Function to initialize distance constraints
+    void setupDistanceConstraints() {
+        for (const auto& tet : tetIds) {
+            // Get the four vertices of the tetrahedron
+            int v0 = tet.x;
+            int v1 = tet.y;
+            int v2 = tet.z;
+            int v3 = tet.w;
+
+            // Add constraints for all edges of the tetrahedron
+            addDistanceConstraint(v0, v1);
+            addDistanceConstraint(v0, v2);
+            addDistanceConstraint(v0, v3);
+            addDistanceConstraint(v1, v2);
+            addDistanceConstraint(v1, v3);
+            addDistanceConstraint(v2, v3);
+        }
+    }
+
+    // Function to add a distance constraint for a tetrahedron
+    void addDistanceConstraint(int v1, int v2) {
+        // Calculate the rest length (distance between the two vertices)
+        glm::vec3 p1 = vertices[v1].Position;
+        glm::vec3 p2 = vertices[v2].Position;
+        float restLength = glm::length(p2 - p1);
+
+        // Add the constraint to the list
+        distanceConstraints.push_back({ v1, v2, restLength });
+    }
+
 
     // Function to initialize volume constraints
     void setupVolumeConstraints() {
@@ -78,52 +110,21 @@ public:
         float signedVolume = glm::dot(edge1, glm::cross(edge2, edge3)) / 6.0f;
 
         // Use the absolute value for the rest volume
-        //float restVolume = std::abs(signedVolume);
-        float restVolume = signedVolume;
+        float restVolume = std::abs(signedVolume);
+        //float restVolume = signedVolume;
         //float restVolume = 10.0f;
 
         // Print the rest volume for debugging
-        std::cout << "Rest volume for tetrahedron " << tetId << ": " << restVolume << std::endl;
+        //std::cout << "Rest volume for tetrahedron " << tetId << ": " << restVolume << std::endl;
 
         // Add the volume constraint
         volumeConstraints.push_back({ tetId, restVolume });
     }
 
     // Function to solve volume constraints
-    void solveVolumeConstraints() {
-        for (auto& constraint : volumeConstraints) {
-            glm::vec4 tet = tetIds[constraint.tetId];
-            Vertex& v1 = vertices[tet.x];
-            Vertex& v2 = vertices[tet.y];
-            Vertex& v3 = vertices[tet.z];
-            Vertex& v4 = vertices[tet.w];
-
-            glm::vec3 edge1 = v2.Position - v1.Position;
-            glm::vec3 edge2 = v3.Position - v1.Position;
-            glm::vec3 edge3 = v4.Position - v1.Position;
-
-            float currentVolume = glm::dot(edge1, glm::cross(edge2, edge3)) / 6.0f;
-            float volumeDifference = currentVolume - constraint.restVolume;
-
-            glm::vec3 gradient1 = glm::cross(edge2, edge3) / 6.0f;
-            glm::vec3 gradient2 = glm::cross(edge3, edge1) / 6.0f;
-            glm::vec3 gradient3 = glm::cross(edge1, edge2) / 6.0f;
-            glm::vec3 gradient4 = -(gradient1 + gradient2 + gradient3);
-
-            float stiffness = 100.0f; // Adjust stiffness as needed
-            glm::vec3 correction = stiffness * volumeDifference * gradient1;
-            //glm::vec3 correction = glm::vec3(100.0f, 100.0f, 100.0f);
-            v1.Position += correction;
-            v2.Position += stiffness * volumeDifference * gradient2;
-            v3.Position += stiffness * volumeDifference * gradient3;
-            v4.Position += stiffness * volumeDifference * gradient4;
-        }
-
-
-    
-
- 
-};
+//    void solveVolumeConstraints() {
+// 
+//};
 
     void Draw(Shader& shader) {
         unsigned int diffuseNr = 1;
