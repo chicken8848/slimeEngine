@@ -103,7 +103,8 @@ int main() {
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
   // Create a window object
-  GLFWwindow *window = glfwCreateWindow(800, 600, "slimeEngine", NULL, NULL);
+  GLFWwindow *window =
+      glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "slimeEngine", NULL, NULL);
 
   if (window == NULL) {
     printf("Failed to create GLFW Window");
@@ -122,7 +123,7 @@ int main() {
   }
 
   // Tell openGl the size of rendering window
-  glViewport(0, 0, 800, 600);
+  glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
 
   // tell GLFW to call this function on every window resize
   glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
@@ -204,7 +205,11 @@ int main() {
   ourShader.setFloat("pointLights[0].linear", 0.09f);
   ourShader.setFloat("pointLights[0].quadratic", 0.032f);
 
-  Model testModel(FileSystem::getPath("assets/pudding/tetrapudding.obj"));
+  Model testModel(FileSystem::getPath("assets/Cube/Untitled.obj"));
+  testModel.meshes[0].addParticles(
+      FileSystem::getPath("assets/Cube/pudding.nodes"), 1);
+  testModel.meshes[0].addTetraIDs(
+      FileSystem::getPath("assets/Cube/pudding.ele"));
 
   glEnable(GL_BLEND); // you enable blending function
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
