@@ -11,7 +11,7 @@ using namespace std;
 
 #define MAX_BONE_INFLUENCE 4
 
-float stiffness = 0.5;
+float stiffness = 1.0f;
 
 struct Vertex {
     
@@ -58,8 +58,30 @@ public:
         vector<Texture> textures, std::vector<glm::vec4> tetIds)
         : vertices(vertices), indices(indices), textures(textures), tetIds(tetIds) {
         setupMesh();
+        
         setupDistanceConstraints(); // Initialize distance constraints
         setupVolumeConstraints(); // Initialize volume constraints
+
+        initInverseMass();
+    }
+
+    void initInverseMass() {
+        // Clear inverse masses and rest volumes
+        // Iterate through all tetrahedra
+        for (int i = 0; i < volumeConstraints.size(); i++) {
+            // Calculate the volume of the tetrahedron
+            float vol = volumeConstraints[i].restVolume;
+
+            // Calculate the inverse mass for each vertex in the tetrahedron
+            //float pInvMass = (vol > 0.0f) ? 1.0f / (vol / 4.0f) : 0.0f;
+            float pInvMass = 0.25;
+
+            // Add the inverse mass contribution to each vertex
+            vertices[tetIds[i].x].inverseMass += pInvMass;
+            vertices[tetIds[i].y].inverseMass += pInvMass;
+            vertices[tetIds[i].z].inverseMass += pInvMass;
+            vertices[tetIds[i].w].inverseMass += pInvMass;
+        }
     }
 
     // Function to initialize distance constraints
@@ -126,6 +148,14 @@ public:
         Vertex& v1 = vertices[constraint.v1];
         Vertex& v2 = vertices[constraint.v2];
 
+        double alpha = 0.001f / deltaTSub / deltaTSub;
+       
+
+        float w = v1.inverseMass + v2.inverseMass;
+        if (w == 0) {
+            return;
+        }
+
         glm::vec3 delta = v2.Position - v1.Position;
         float distance = glm::length(delta);
 
@@ -137,8 +167,10 @@ public:
             glm::vec3 gradient1 = -delta / distance;
             glm::vec3 gradient2 = delta / distance;
 
+
             // Compute lambda
-            float lambda = computeLambda(constraintValue, gradient1, gradient2, v1.inverseMass, v2.inverseMass, deltaTSub);
+            //float lambda = computeLambda(constraintValue, gradient1, gradient2, v1.inverseMass, v2.inverseMass, deltaTSub);
+            float lambda = -constraintValue / (w + alpha);
 
             // Apply correction
             v1.Position += lambda * v1.inverseMass * gradient1;
@@ -165,6 +197,7 @@ public:
         glm::vec3 gradient2 = glm::cross(edge3, edge1) / 6.0f;
         glm::vec3 gradient3 = glm::cross(edge1, edge2) / 6.0f;
         glm::vec3 gradient4 = -(gradient1 + gradient2 + gradient3);
+
 
         // Compute lambda
         float lambda = computeLambda(constraintValue, gradient1, gradient2, gradient3, gradient4,

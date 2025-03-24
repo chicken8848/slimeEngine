@@ -66,7 +66,7 @@ void simulateSoftBody(Model& model, float deltaTime, int numSubsteps) {
 
                 // Solve volume constraints
                 for (auto& constraint : mesh.volumeConstraints) {
-                    mesh.solveVolumeConstraint(constraint, mesh.vertices, mesh.tetIds, deltaTSub);
+                    //mesh.solveVolumeConstraint(constraint, mesh.vertices, mesh.tetIds, deltaTSub);
                 }
             }
         }
@@ -79,22 +79,44 @@ void simulateSoftBody(Model& model, float deltaTime, int numSubsteps) {
         }
     }
 
-    // Handle collisions with the ground
-    for (auto& mesh : model.meshes) {
-        for (auto& vertex : mesh.vertices) {
-            if (vertex.Position.y < groundY) {
-                vertex.Position.y = groundY;
-                vertex.Velocity.y *= -0.5f; // Bounce
-                vertex.Velocity *= damping; // Dampen velocity
-            }
-        }
-    }
+    //// Handle collisions with the ground
+    //for (auto& mesh : model.meshes) {
+    //    for (auto& vertex : mesh.vertices) {
+    //        if (vertex.Position.y < groundY) {
+    //            vertex.Position.y = groundY;
+    //            vertex.Velocity.y *= -0.5f; // Bounce
+    //            vertex.Velocity *= damping; // Dampen velocity
+    //        }
+    //    }
+    //}
 
     // Update VBOs
     for (auto& mesh : model.meshes) {
         glBindBuffer(GL_ARRAY_BUFFER, mesh.VBO);
         glBufferSubData(GL_ARRAY_BUFFER, 0, mesh.vertices.size() * sizeof(Vertex), mesh.vertices.data());
         glBindBuffer(GL_ARRAY_BUFFER, 0);
+    }
+}
+
+// Ground collision handling
+void handleGroundCollisions(Model& model, float groundY, float restitution, float friction, float damping) {
+    for (auto& mesh : model.meshes) {
+        for (auto& vertex : mesh.vertices) {
+            if (vertex.Position.y < groundY) {
+                // Move the vertex back to the ground level
+                vertex.Position.y = groundY;
+
+                // Reflect the vertical velocity (bounce)
+                vertex.Velocity.y *= -restitution;
+
+                // Apply friction to the horizontal velocity (x and z components)
+                vertex.Velocity.x *= friction;
+                vertex.Velocity.z *= friction;
+
+                // Apply damping to the velocity
+                vertex.Velocity *= damping;
+            }
+        }
     }
 }
 
@@ -139,7 +161,7 @@ int main() {
     // Load model
     stbi_set_flip_vertically_on_load(true);
     //Model testModel(FileSystem::getPath("assets/pudding/tetrapudding.obj"));
-    Model testModel("C:/Users/zq/Desktop/school/CSD6/graphics/jiggle/tetrapuddingface.obj");
+    Model testModel("C:/Users/zq/Desktop/school/CSD6/graphics/jiggle/tetracube1face.obj");
 
     // Set up point lights
     glm::vec3 pointLightPositions[] = {
@@ -164,13 +186,18 @@ int main() {
         }
         lastFrame = currentFrame;
 
-        int numSubsteps = 1;
+        int numSubsteps = 5;
 
         // Process input
         processInput(window);
 
         // Simulate soft body physics
         simulateSoftBody(testModel, deltaTime, numSubsteps);
+
+        float restitution = 0.5f;   // Bounciness (50% energy retained)
+        float friction = 0.8f;
+
+        handleGroundCollisions(testModel, groundY, restitution, friction, damping);
 
         // Clear the screen
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);

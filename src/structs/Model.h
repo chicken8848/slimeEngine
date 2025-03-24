@@ -45,8 +45,9 @@ private:
     void loadModel(string const& path) {
         Assimp::Importer importer;
         const aiScene* scene = importer.ReadFile(
-            path, aiProcess_Triangulate | aiProcess_GenSmoothNormals |
-            aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
+            path, aiProcess_GenSmoothNormals |
+            aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_JoinIdenticalVertices);
+        //aiProcess_Triangulate
         if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
             cout << "ERROR::ASSIMP:: " << importer.GetErrorString() << endl;
             return;
@@ -153,6 +154,8 @@ private:
         //vector<glm::vec3> verticespos = loadNodes("C:/Users/zq/Downloads/tetgen1.6.0/tetgen1.6.0/build/Debug/puddings/pudding.1.node");
         // Process vertices
         for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
+        //for (unsigned int i = 0; i < verticespos.size(); i++) {
+        //for (unsigned int i = 0; i < 72; i++) {
             Vertex vertex;
             glm::vec3 vector;
 
@@ -198,9 +201,7 @@ private:
             // Initialize velocity for physics simulation
             vertex.Velocity = glm::vec3(0.0f);
 
-            vertex.inverseMass = 1.0f;
-
-            //vertex.Velocity = glm::vec3(0.0f);
+            //vertex.inverseMass = 1.0f;
 
             vertices.push_back(vertex);
         }
