@@ -38,68 +38,43 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn);
 void scroll_callback(GLFWwindow* window, double xpos, double ypos);
 void processInput(GLFWwindow* window);
 
-void simulateSoftBody(Model& model, float deltaTime) {
-    // Apply gravity
-    for (auto& mesh : model.meshes) {
-        for (auto& vertex : mesh.vertices) {
-            vertex.Velocity += glm::vec3(0.0f, gravity * deltaTime, 0.0f);
-            vertex.Position += vertex.Velocity * deltaTime;
-        }
-    }
+void simulateSoftBody(Model& model, float deltaTime, int numSubsteps) {
+    float deltaTSub = deltaTime / numSubsteps; // Substep size
 
-    // Solve constraints iteratively
-    for (int i = 0; i < constraintIterations; i++) {
+    for (int substep = 0; substep < numSubsteps; substep++) {
+        // Update velocities and positions
         for (auto& mesh : model.meshes) {
-            // Solve distance constraints
-            for (auto& constraint : mesh.distanceConstraints) {
-                Vertex& v1 = mesh.vertices[constraint.v1];
-                Vertex& v2 = mesh.vertices[constraint.v2];
+            for (auto& vertex : mesh.vertices) {
+                // Apply gravity to velocity
+                vertex.Velocity += deltaTSub * glm::vec3(0.0f, gravity, 0.0f);
 
-                glm::vec3 delta = v2.Position - v1.Position;
-                float distance = glm::length(delta);
+                // Save previous position
+                vertex.PreviousPosition = vertex.Position;
 
-                const float epsilon = 1e-6f;
-                float constraintValue = distance - constraint.restLength;
-                if (distance > epsilon && constraintValue > epsilon) {
-                    
-                    float stiffness = 0.5f; // Adjust as needed
-                    glm::vec3 correction = stiffness * (constraintValue / distance) * delta * 0.5f;
-                    //glm::vec3 correction = glm::vec3(10.0f, 10.0f, 10.0f);
+                // Update position using velocity
+                vertex.Position += deltaTSub * vertex.Velocity;
+            }
+        }
 
-                    v1.Position += correction;
-                    v2.Position -= correction;
+        // Solve constraints
+        for (int i = 0; i < constraintIterations; i++) {
+            for (auto& mesh : model.meshes) {
+                // Solve distance constraints
+                for (auto& constraint : mesh.distanceConstraints) {
+                    mesh.solveDistanceConstraint(constraint, mesh.vertices, deltaTSub);
+                }
+
+                // Solve volume constraints
+                for (auto& constraint : mesh.volumeConstraints) {
+                    mesh.solveVolumeConstraint(constraint, mesh.vertices, mesh.tetIds, deltaTSub);
                 }
             }
+        }
 
-            // Solve volume constraints
-            for (auto& constraint : mesh.volumeConstraints) {
-                glm::vec4 tet = mesh.tetIds[constraint.tetId];
-                Vertex& v1 = mesh.vertices[tet.x];
-                Vertex& v2 = mesh.vertices[tet.y];
-                Vertex& v3 = mesh.vertices[tet.z];
-                Vertex& v4 = mesh.vertices[tet.w];
-
-                glm::vec3 edge1 = v2.Position - v1.Position;
-                glm::vec3 edge2 = v3.Position - v1.Position;
-                glm::vec3 edge3 = v4.Position - v1.Position;
-
-                float currentVolume = std::abs(glm::dot(edge1, glm::cross(edge2, edge3)) / 6.0f);
-                float volumeDifference = currentVolume - constraint.restVolume;
-
-                glm::vec3 gradient1 = glm::normalize(glm::cross(edge2, edge3) / 6.0f);
-                glm::vec3 gradient2 = glm::normalize(glm::cross(edge3, edge1) / 6.0f);
-                glm::vec3 gradient3 = glm::normalize(glm::cross(edge1, edge2) / 6.0f);
-                glm::vec3 gradient4 = -(gradient1 + gradient2 + gradient3);
-
-                const float epsilon = 1e-6f;
-                float stiffness = 0.5f; // Adjust as needed
-                if (volumeDifference > epsilon) {
-                    
-                    v1.Position += stiffness * volumeDifference * gradient1;
-                    v2.Position += stiffness * volumeDifference * gradient2;
-                    v3.Position += stiffness * volumeDifference * gradient3;
-                    v4.Position += stiffness * volumeDifference * gradient4;
-                }
+        // Update velocities based on corrected positions
+        for (auto& mesh : model.meshes) {
+            for (auto& vertex : mesh.vertices) {
+                vertex.Velocity = (vertex.Position - vertex.PreviousPosition) / deltaTSub;
             }
         }
     }
@@ -189,11 +164,13 @@ int main() {
         }
         lastFrame = currentFrame;
 
+        int numSubsteps = 1;
+
         // Process input
         processInput(window);
 
         // Simulate soft body physics
-        simulateSoftBody(testModel, deltaTime);
+        simulateSoftBody(testModel, deltaTime, numSubsteps);
 
         // Clear the screen
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);

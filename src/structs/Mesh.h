@@ -11,7 +11,10 @@ using namespace std;
 
 #define MAX_BONE_INFLUENCE 4
 
+float stiffness = 0.5;
+
 struct Vertex {
+    
     glm::vec3 Position;
     glm::vec3 Normal;
     glm::vec2 TexCoords;
@@ -19,6 +22,9 @@ struct Vertex {
     glm::vec3 Bitangent;
     int m_BoneIDs[MAX_BONE_INFLUENCE];
     float m_Weights[MAX_BONE_INFLUENCE];
+
+    glm::vec3 PreviousPosition;
+    float inverseMass;
     glm::vec3 Velocity; // Added for physics simulation
 };
 
@@ -111,20 +117,86 @@ public:
 
         // Use the absolute value for the rest volume
         float restVolume = std::abs(signedVolume);
-        //float restVolume = signedVolume;
-        //float restVolume = 10.0f;
-
-        // Print the rest volume for debugging
-        //std::cout << "Rest volume for tetrahedron " << tetId << ": " << restVolume << std::endl;
 
         // Add the volume constraint
         volumeConstraints.push_back({ tetId, restVolume });
     }
+ 
+    void solveDistanceConstraint(const DistanceConstraint& constraint, std::vector<Vertex>& vertices, float deltaTSub) {
+        Vertex& v1 = vertices[constraint.v1];
+        Vertex& v2 = vertices[constraint.v2];
 
-    // Function to solve volume constraints
-//    void solveVolumeConstraints() {
-// 
-//};
+        glm::vec3 delta = v2.Position - v1.Position;
+        float distance = glm::length(delta);
+
+        const float epsilon = 1e-6f;
+        if (distance > epsilon) {
+            float constraintValue = distance - constraint.restLength;
+
+            // Compute gradients
+            glm::vec3 gradient1 = -delta / distance;
+            glm::vec3 gradient2 = delta / distance;
+
+            // Compute lambda
+            float lambda = computeLambda(constraintValue, gradient1, gradient2, v1.inverseMass, v2.inverseMass, deltaTSub);
+
+            // Apply correction
+            v1.Position += lambda * v1.inverseMass * gradient1;
+            v2.Position += lambda * v2.inverseMass * gradient2;
+        }
+    }
+
+    void solveVolumeConstraint(const VolumeConstraint& constraint, std::vector<Vertex>& vertices, std::vector<glm::vec4>& tetIds, float deltaTSub) {
+        glm::vec4 tet = tetIds[constraint.tetId];
+        Vertex& v1 = vertices[tet.x];
+        Vertex& v2 = vertices[tet.y];
+        Vertex& v3 = vertices[tet.z];
+        Vertex& v4 = vertices[tet.w];
+
+        glm::vec3 edge1 = v2.Position - v1.Position;
+        glm::vec3 edge2 = v3.Position - v1.Position;
+        glm::vec3 edge3 = v4.Position - v1.Position;
+
+        float currentVolume = std::abs(glm::dot(edge1, glm::cross(edge2, edge3))) / 6.0f;
+        float constraintValue = currentVolume - constraint.restVolume;
+
+        // Compute gradients
+        glm::vec3 gradient1 = glm::cross(edge2, edge3) / 6.0f;
+        glm::vec3 gradient2 = glm::cross(edge3, edge1) / 6.0f;
+        glm::vec3 gradient3 = glm::cross(edge1, edge2) / 6.0f;
+        glm::vec3 gradient4 = -(gradient1 + gradient2 + gradient3);
+
+        // Compute lambda
+        float lambda = computeLambda(constraintValue, gradient1, gradient2, gradient3, gradient4,
+            v1.inverseMass, v2.inverseMass, v3.inverseMass, v4.inverseMass, deltaTSub);
+
+        // Apply correction
+        v1.Position += lambda * v1.inverseMass * gradient1;
+        v2.Position += lambda * v2.inverseMass * gradient2;
+        v3.Position += lambda * v3.inverseMass * gradient3;
+        v4.Position += lambda * v4.inverseMass * gradient4;
+    }
+
+    float computeLambda(float constraintValue, const glm::vec3& gradient1, const glm::vec3& gradient2,
+        float inverseMass1, float inverseMass2, float deltaTSub) {
+        float denominator = (1.0f / stiffness) / (deltaTSub * deltaTSub);
+        denominator += inverseMass1 * glm::dot(gradient1, gradient1);
+        denominator += inverseMass2 * glm::dot(gradient2, gradient2);
+
+        return -constraintValue / denominator;
+    }
+
+    float computeLambda(float constraintValue, const glm::vec3& gradient1, const glm::vec3& gradient2,
+        const glm::vec3& gradient3, const glm::vec3& gradient4,
+        float inverseMass1, float inverseMass2, float inverseMass3, float inverseMass4, float deltaTSub) {
+        float denominator = (1.0f / stiffness) / (deltaTSub * deltaTSub);
+        denominator += inverseMass1 * glm::dot(gradient1, gradient1);
+        denominator += inverseMass2 * glm::dot(gradient2, gradient2);
+        denominator += inverseMass3 * glm::dot(gradient3, gradient3);
+        denominator += inverseMass4 * glm::dot(gradient4, gradient4);
+
+        return -constraintValue / denominator;
+    }
 
     void Draw(Shader& shader) {
         unsigned int diffuseNr = 1;

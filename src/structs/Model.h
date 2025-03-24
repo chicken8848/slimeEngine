@@ -198,6 +198,10 @@ private:
             // Initialize velocity for physics simulation
             vertex.Velocity = glm::vec3(0.0f);
 
+            vertex.inverseMass = 1.0f;
+
+            //vertex.Velocity = glm::vec3(0.0f);
+
             vertices.push_back(vertex);
         }
 
