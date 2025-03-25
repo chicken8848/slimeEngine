@@ -208,11 +208,17 @@ int main() {
   ourCam.Position = {0, 0, -1.0f};
 
   Model testModel(FileSystem::getPath("assets/Cube/Untitled.obj"));
+  /*
   testModel.meshes[0].addParticles(
       FileSystem::getPath("assets/Cube/pudding.nodes"), 0.01);
   testModel.meshes[0].addTetraIDs(
       FileSystem::getPath("assets/Cube/pudding.ele"));
   testModel.meshes[0].calcEdges();
+  testModel.meshes[0].edge_compliance = 0.02f;
+  */
+  testModel.meshes[0].initSoftBody(
+      FileSystem::getPath("assets/Cube/pudding.nodes"),
+      FileSystem::getPath("assets/Cube/pudding.ele"), 0.01, 0.02f, 10);
 
   glEnable(GL_BLEND); // you enable blending function
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -229,7 +235,6 @@ int main() {
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     // use the program
-    testModel.meshes[0].update(deltaTime, 10, {0, -10, 0});
 
     ourShader.use();
 
@@ -265,6 +270,7 @@ int main() {
                   1.0f)); // it's a bit too big for our scene, so scale it down
     ourShader.setMat4("model", model);
     testModel.Draw(ourShader);
+    testModel.meshes[0].update(deltaTime, 10, {0, -10, 0});
 
     glfwSwapBuffers(window);
     glfwPollEvents();

@@ -87,16 +87,29 @@ public:
   unordered_map<int, vector<int>> particle_vertex_map;
   vector<glm::vec4> tetraIds;
   vector<Edge> edges;
-  float compliance;
+  float edge_compliance;
+  float volume_compliance;
+  bool is_soft;
 
   Mesh(vector<Vertex> vertices, vector<unsigned int> indices,
        vector<Texture> textures) {
     this->vertices = vertices;
     this->indices = indices;
     this->textures = textures;
+    this->is_soft = false;
 
     setupMesh();
-    this->compliance = 0.1f;
+  }
+
+  void initSoftBody(const string &node_path, const string &tetIDpath,
+                    float mass, float edge_compliance,
+                    float volume_compliance) {
+    this->is_soft = true;
+    this->edge_compliance = edge_compliance;
+    this->volume_compliance = volume_compliance;
+    this->addParticles(node_path, mass);
+    this->addTetraIDs(tetIDpath);
+    this->calcEdges();
   }
 
   void addParticles(const string &path, float mass) {
@@ -208,7 +221,7 @@ public:
   }
 
   void solve_edges(float dt) {
-    double alpha = this->compliance / dt / dt;
+    double alpha = this->edge_compliance / dt / dt;
 
     for (Edge &e : this->edges) {
       Particle &point0 = particles[e.particle_ids.x];
