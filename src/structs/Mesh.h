@@ -312,7 +312,7 @@ public:
 
     void solve(float dt) { 
         solve_edges(dt);
-        //solve_volume(dt);
+        solve_volume(dt);
     }
 
     void update(float dt, int substeps, glm::vec3 gravity) {

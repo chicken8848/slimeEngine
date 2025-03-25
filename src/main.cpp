@@ -73,8 +73,8 @@ int main() {
 
     // Load shaders
     Shader ourShader(
-        "C:/Users/zq/Documents/GitHub/slimeEngine/src/shaders/texture.vert",
-        "C:/Users/zq/Documents/GitHub/slimeEngine/src/shaders/texture.frag"
+        "C:/Users/zq/Documents/GitHub/slimeEngine/src/shaders/texture2.vert",
+        "C:/Users/zq/Documents/GitHub/slimeEngine/src/shaders/texture2.frag"
     );
 
     // Load model
@@ -82,12 +82,12 @@ int main() {
     //Model testModel(FileSystem::getPath("assets/pudding/tetrapudding.obj"));
     Model testModel("C:/Users/zq/Desktop/school/CSD6/graphics/jiggle/tetracube.obj");
 
-    float mass = 1.0f; // higher = more jiggly, 1 is good
+    float mass = 0.01f; // higher = more jiggly, 1 is good
     float edge_compliance = 0.001f; // higher = more jiggly, 0.01 is good
-    float volume_compliance = 0.0001f;
+    float volume_compliance = 0.001f;
 
-    testModel.meshes[0].initSoftBody(FileSystem::getPath("assets/pudding/cube.nodes"),
-        FileSystem::getPath("assets/pudding/cube.ele"), mass, edge_compliance, volume_compliance);
+    testModel.meshes[0].initSoftBody(FileSystem::getPath("assets/pudding/cube10.nodes"),
+        FileSystem::getPath("assets/pudding/cube10.ele"), mass, edge_compliance, volume_compliance);
 
     // Set up point lights
     glm::vec3 pointLightPositions[] = {
@@ -126,12 +126,20 @@ int main() {
 
         // Set up point light properties
         ourShader.setVec3("pointLights[0].position", pointLightPositions[0]);
-        ourShader.setVec3("pointLights[0].ambient", 0.05f, 0.05f, 0.05f);
+        ourShader.setVec3("pointLights[0].ambient", 0.1f, 0.1f, 0.1f);
         ourShader.setVec3("pointLights[0].diffuse", 0.8f, 0.8f, 0.8f);
         ourShader.setVec3("pointLights[0].specular", 1.0f, 1.0f, 1.0f);
         ourShader.setFloat("pointLights[0].constant", 1.0f);
         ourShader.setFloat("pointLights[0].linear", 0.09f);
         ourShader.setFloat("pointLights[0].quadratic", 0.032f);
+
+        ourShader.setVec3("pointLights[1].position", pointLightPositions[1]);
+        ourShader.setVec3("pointLights[1].ambient", 0.1f, 0.1f, 0.1f);
+        ourShader.setVec3("pointLights[1].diffuse", 0.8f, 0.8f, 0.8f);
+        ourShader.setVec3("pointLights[1].specular", 1.0f, 1.0f, 1.0f);
+        ourShader.setFloat("pointLights[1].constant", 1.0f);
+        ourShader.setFloat("pointLights[1].linear", 0.09f);
+        ourShader.setFloat("pointLights[1].quadratic", 0.032f);
 
         // Set up projection and view matrices
         glm::mat4 projection = glm::perspective(glm::radians(ourCam.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
