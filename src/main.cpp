@@ -80,14 +80,14 @@ int main() {
     // Load model
     stbi_set_flip_vertically_on_load(true);
     //Model testModel(FileSystem::getPath("assets/pudding/tetrapudding.obj"));
-    Model testModel("C:/Users/zq/Desktop/school/CSD6/graphics/jiggle/tetracube2res.obj");
+    Model testModel("C:/Users/zq/Desktop/school/CSD6/graphics/jiggle/tetracube.obj");
 
     float mass = 1.0f; // higher = more jiggly, 1 is good
     float edge_compliance = 0.001f; // higher = more jiggly, 0.01 is good
-    float volume_compliance = 0;
+    float volume_compliance = 0.0001f;
 
-    testModel.meshes[0].initSoftBody(FileSystem::getPath("assets/pudding/pudding.nodes"),
-        FileSystem::getPath("assets/pudding/pudding.ele"), mass, edge_compliance, volume_compliance);
+    testModel.meshes[0].initSoftBody(FileSystem::getPath("assets/pudding/cube.nodes"),
+        FileSystem::getPath("assets/pudding/cube.ele"), mass, edge_compliance, volume_compliance);
 
     // Set up point lights
     glm::vec3 pointLightPositions[] = {
@@ -143,7 +143,7 @@ int main() {
         ourShader.setMat4("model", model);
         
         //if (currentFrame > 5) {
-        int substeps = 5; //more = faster?? 1 to 10 is good
+        int substeps = 1; //more = faster?? 1 to 10 is good
         glm::vec3 gravity = { 0, -10, 0 };
        
         testModel.meshes[0].update(deltaTime, substeps, gravity);

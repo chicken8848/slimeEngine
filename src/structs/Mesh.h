@@ -18,6 +18,8 @@ using namespace std;
 
 #define MAX_BONE_INFLUENCE 4
 
+
+
 struct Particle {
     glm::vec3 pos;
     glm::vec3 prev_pos;
@@ -69,6 +71,11 @@ struct Edge {
     }
 };
 
+struct Tetrahedron {
+    glm::vec4 particle_ids;
+    float rest_volume;
+};
+
 struct Texture {
     unsigned int id;
     string type;
@@ -86,8 +93,11 @@ public:
     vector<Particle> particles;
     vector<Particle> particle_reset;
     unordered_map<int, vector<int>> particle_vertex_map;
-    vector<glm::vec4> tetraIds;
+    //vector<glm::vec4> tetraIds;
+
     vector<Edge> edges;
+    vector<Tetrahedron> tetrahedrons;
+
     float edge_compliance;
     float volume_compliance;
     bool is_soft;
@@ -139,10 +149,10 @@ public:
     }
 
     void create_particle_vertex_map() {
-        const float epsilon = 0.001;
+        const float epsilon = 0.01f;
         for (int i = 0; i < particles.size(); i++) {
             for (int j = 0; j < vertices.size(); j++) {
-                if (glm::length(particles[i].pos - vertices[j].Position) <= epsilon) {
+                if (std::abs(glm::length(particles[i].pos - vertices[j].Position)) <= epsilon) {
                     this->particle_vertex_map[i].push_back(j);
                 }
             }
@@ -152,29 +162,30 @@ public:
     void addTetraIDs(const string& path) {
         fstream f(path);
         std::string line_buffer;
-
         regex reg("\\s+");
 
-        glm::vec4 tet;
-
         while (getline(f, line_buffer)) {
-            sregex_token_iterator iter(line_buffer.begin(), line_buffer.end(), reg,
-                -1);
+            sregex_token_iterator iter(line_buffer.begin(), line_buffer.end(), reg, -1);
             sregex_token_iterator end;
-
             vector<string> vec(iter, end);
 
-            tet.x = std::stof(vec[0]);
-            tet.y = std::stof(vec[1]);
-            tet.z = std::stof(vec[2]);
-            tet.w = std::stof(vec[3]);
-            this->tetraIds.push_back(tet);
+            Tetrahedron tet;
+            tet.particle_ids.x = std::stoi(vec[0]);
+            tet.particle_ids.y = std::stoi(vec[1]);
+            tet.particle_ids.z = std::stoi(vec[2]);
+            tet.particle_ids.w = std::stoi(vec[3]);
+
+            // Calculate initial rest volume
+            tet.rest_volume = getTetVolume(tet.particle_ids);
+
+            this->tetrahedrons.push_back(tet);
         }
         f.close();
     }
 
     void calcEdges() {
-        for (auto t : tetraIds) {
+        for (auto tet : tetrahedrons) {
+            glm::vec4 t = tet.particle_ids;
             Particle& point0 = particles[t.x];
             Particle& point1 = particles[t.y];
             Particle& point2 = particles[t.z];
@@ -199,6 +210,19 @@ public:
         this->edges.erase(last, this->edges.end());
     }
 
+    float getTetVolume(const glm::vec4& t) {
+        Particle& point0 = particles[t.x];
+        Particle& point1 = particles[t.y];
+        Particle& point2 = particles[t.z];
+        Particle& point3 = particles[t.w];
+
+        glm::vec3 tempVec1 = point1.pos - point0.pos;
+        glm::vec3 tempVec2 = point2.pos - point0.pos;
+        glm::vec3 tempVec3 = point3.pos - point0.pos;
+
+        return glm::abs(glm::dot(glm::cross(tempVec1, tempVec2), tempVec3)) / 6.0f;
+    }
+
     void pre_solve(float dt, glm::vec3 gravity) {
         for (int i = 0; i < particles.size(); i++) {
             if (particles[i].inv_mass == 0)
@@ -206,9 +230,9 @@ public:
             particles[i].velocity = particles[i].velocity + (gravity * dt);
             particles[i].prev_pos = particles[i].pos;
             particles[i].pos = particles[i].pos + particles[i].velocity * dt;
-            if (particles[i].pos.y + 2 < 0.001) {
+            if (particles[i].pos.y < -4.999) {
                 particles[i].pos = particles[i].prev_pos;
-                particles[i].pos.y = -2;
+                particles[i].pos.y = -5;
             }
         }
     }
@@ -243,13 +267,52 @@ public:
     }
 
     void solve_volume(float dt) {
-        return;
+    
+        double alpha = this->volume_compliance / dt / dt;
+        
+        std::vector<glm::vec3> volIdOrder = {
+            glm::vec3(1, 3, 2),
+            glm::vec3(0, 2, 3),
+            glm::vec3(0, 3, 1),
+            glm::vec3(0, 1, 2)
+                };
+
+        for (Tetrahedron& tet : this->tetrahedrons) {
+            float w = 0;
+            glm::vec3 diffVec[4];
+            glm::vec3 gradients[4];
+
+            // Calculate gradients for each face
+            for (int j = 0; j < 4; j++) {
+                Particle& point0 = particles[tet.particle_ids[volIdOrder[j][0]]];
+                Particle& point1 = particles[tet.particle_ids[volIdOrder[j][1]]];
+                Particle& point2 = particles[tet.particle_ids[volIdOrder[j][2]]];
+
+                glm::vec3 tempVec1 = point1.pos - point0.pos;
+                glm::vec3 tempVec2 = point2.pos - point0.pos;
+
+                diffVec[j] = glm::cross(tempVec1, tempVec2);
+                gradients[j] = diffVec[j] * (1.0f / 6.0f);
+
+                w += particles[tet.particle_ids[j]].inv_mass * glm::dot(gradients[j], gradients[j]);
+            }
+            if (w == 0) {
+                continue;
+            }
+            float volume = getTetVolume(tet.particle_ids);
+            float constraint_diff = volume - tet.rest_volume;
+            float l = -constraint_diff / (w + alpha);
+
+            for (int j = 0; j < 4; j++) {
+                Particle& p = particles[tet.particle_ids[j]];
+                p.pos += gradients[j] * l * p.inv_mass;
+            }
+        }
     }
 
     void solve(float dt) { 
         solve_edges(dt);
-        solve_volume(dt);
-    
+        //solve_volume(dt);
     }
 
     void update(float dt, int substeps, glm::vec3 gravity) {
