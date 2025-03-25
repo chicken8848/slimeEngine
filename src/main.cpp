@@ -208,17 +208,10 @@ int main() {
   ourCam.Position = {0, 0, -1.0f};
 
   Model testModel(FileSystem::getPath("assets/Cube/Untitled.obj"));
-  /*
-  testModel.meshes[0].addParticles(
-      FileSystem::getPath("assets/Cube/pudding.nodes"), 0.01);
-  testModel.meshes[0].addTetraIDs(
-      FileSystem::getPath("assets/Cube/pudding.ele"));
-  testModel.meshes[0].calcEdges();
-  testModel.meshes[0].edge_compliance = 0.02f;
-  */
+
   testModel.meshes[0].initSoftBody(
       FileSystem::getPath("assets/Cube/pudding.nodes"),
-      FileSystem::getPath("assets/Cube/pudding.ele"), 0.01, 0.02f, 10);
+      FileSystem::getPath("assets/Cube/pudding.ele"), 0.01, 0.02f, 0.02f);
 
   glEnable(GL_BLEND); // you enable blending function
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
