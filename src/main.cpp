@@ -38,87 +38,6 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn);
 void scroll_callback(GLFWwindow* window, double xpos, double ypos);
 void processInput(GLFWwindow* window);
 
-void simulateSoftBody(Model& model, float deltaTime, int numSubsteps) {
-    float deltaTSub = deltaTime / numSubsteps; // Substep size
-
-    for (int substep = 0; substep < numSubsteps; substep++) {
-        // Update velocities and positions
-        for (auto& mesh : model.meshes) {
-            for (auto& vertex : mesh.vertices) {
-                // Apply gravity to velocity
-                vertex.Velocity += deltaTSub * glm::vec3(0.0f, gravity, 0.0f);
-
-                // Save previous position
-                vertex.PreviousPosition = vertex.Position;
-
-                // Update position using velocity
-                vertex.Position += deltaTSub * vertex.Velocity;
-            }
-        }
-
-        // Solve constraints
-        for (int i = 0; i < constraintIterations; i++) {
-            for (auto& mesh : model.meshes) {
-                // Solve distance constraints
-                for (auto& constraint : mesh.distanceConstraints) {
-                    mesh.solveDistanceConstraint(constraint, mesh.vertices, deltaTSub);
-                }
-
-                // Solve volume constraints
-                for (auto& constraint : mesh.volumeConstraints) {
-                    //mesh.solveVolumeConstraint(constraint, mesh.vertices, mesh.tetIds, deltaTSub);
-                }
-            }
-        }
-
-        // Update velocities based on corrected positions
-        for (auto& mesh : model.meshes) {
-            for (auto& vertex : mesh.vertices) {
-                vertex.Velocity = (vertex.Position - vertex.PreviousPosition) / deltaTSub;
-            }
-        }
-    }
-
-    //// Handle collisions with the ground
-    //for (auto& mesh : model.meshes) {
-    //    for (auto& vertex : mesh.vertices) {
-    //        if (vertex.Position.y < groundY) {
-    //            vertex.Position.y = groundY;
-    //            vertex.Velocity.y *= -0.5f; // Bounce
-    //            vertex.Velocity *= damping; // Dampen velocity
-    //        }
-    //    }
-    //}
-
-    // Update VBOs
-    for (auto& mesh : model.meshes) {
-        glBindBuffer(GL_ARRAY_BUFFER, mesh.VBO);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, mesh.vertices.size() * sizeof(Vertex), mesh.vertices.data());
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-    }
-}
-
-// Ground collision handling
-void handleGroundCollisions(Model& model, float groundY, float restitution, float friction, float damping) {
-    for (auto& mesh : model.meshes) {
-        for (auto& vertex : mesh.vertices) {
-            if (vertex.Position.y < groundY) {
-                // Move the vertex back to the ground level
-                vertex.Position.y = groundY;
-
-                // Reflect the vertical velocity (bounce)
-                vertex.Velocity.y *= -restitution;
-
-                // Apply friction to the horizontal velocity (x and z components)
-                vertex.Velocity.x *= friction;
-                vertex.Velocity.z *= friction;
-
-                // Apply damping to the velocity
-                vertex.Velocity *= damping;
-            }
-        }
-    }
-}
 
 int main() {
     // Initialize GLFW
@@ -161,7 +80,14 @@ int main() {
     // Load model
     stbi_set_flip_vertically_on_load(true);
     //Model testModel(FileSystem::getPath("assets/pudding/tetrapudding.obj"));
-    Model testModel("C:/Users/zq/Desktop/school/CSD6/graphics/jiggle/tetracube1face.obj");
+    Model testModel("C:/Users/zq/Desktop/school/CSD6/graphics/jiggle/tetracube2res.obj");
+
+    float mass = 1.0f; // higher = more jiggly, 1 is good
+    float edge_compliance = 0.001f; // higher = more jiggly, 0.01 is good
+    float volume_compliance = 0;
+
+    testModel.meshes[0].initSoftBody(FileSystem::getPath("assets/pudding/pudding.nodes"),
+        FileSystem::getPath("assets/pudding/pudding.ele"), mass, edge_compliance, volume_compliance);
 
     // Set up point lights
     glm::vec3 pointLightPositions[] = {
@@ -181,23 +107,15 @@ int main() {
         // Calculate delta time
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
-        if (deltaTime < 1e-6f) {
-            deltaTime = 1e-6f;
-        }
+   /*     if (deltaTime < 1e-5f) {
+            deltaTime = 1e-5f;
+        }*/
         lastFrame = currentFrame;
 
-        int numSubsteps = 5;
+        //int numSubsteps = 5;
 
         // Process input
         processInput(window);
-
-        // Simulate soft body physics
-        simulateSoftBody(testModel, deltaTime, numSubsteps);
-
-        float restitution = 0.5f;   // Bounciness (50% energy retained)
-        float friction = 0.8f;
-
-        handleGroundCollisions(testModel, groundY, restitution, friction, damping);
 
         // Clear the screen
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
@@ -223,7 +141,16 @@ int main() {
 
         // Draw the model
         ourShader.setMat4("model", model);
+        
+        //if (currentFrame > 5) {
+        int substeps = 5; //more = faster?? 1 to 10 is good
+        glm::vec3 gravity = { 0, -10, 0 };
+       
+        testModel.meshes[0].update(deltaTime, substeps, gravity);
+      
+
         testModel.Draw(ourShader);
+        
 
         // Swap buffers and poll events
         glfwSwapBuffers(window);

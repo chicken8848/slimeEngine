@@ -2,19 +2,41 @@
 #define MESH_H
 
 #include <glad/glad.h> // holds all OpenGL type declarations
+
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+
 #include "Shader.h"
+
 #include <string>
+#include <unordered_map>
 #include <vector>
+
+#include <fstream>
+#include <regex>
 using namespace std;
 
 #define MAX_BONE_INFLUENCE 4
 
-float stiffness = 1.0f;
+struct Particle {
+    glm::vec3 pos;
+    glm::vec3 prev_pos;
+    glm::vec3 velocity;
+    float mass;
+    float inv_mass;
+    Particle(glm::vec3 pos, float mass) {
+        this->pos = pos;
+        this->prev_pos = pos;
+        this->velocity = { 0, 0, 0 };
+        this->mass = mass;
+        if (this->mass != 0)
+            this->inv_mass = 1 / mass;
+        else
+            this->inv_mass = 0;
+    }
+};
 
 struct Vertex {
-    
     glm::vec3 Position;
     glm::vec3 Normal;
     glm::vec2 TexCoords;
@@ -22,10 +44,29 @@ struct Vertex {
     glm::vec3 Bitangent;
     int m_BoneIDs[MAX_BONE_INFLUENCE];
     float m_Weights[MAX_BONE_INFLUENCE];
+};
 
-    glm::vec3 PreviousPosition;
-    float inverseMass;
-    glm::vec3 Velocity; // Added for physics simulation
+struct Edge {
+    glm::vec2 particle_ids;
+    float rest_length;
+    Edge(float start_particle, float end_particle, float rest_length) {
+        if (start_particle > end_particle)
+            particle_ids = { end_particle, start_particle };
+        else
+            particle_ids = { start_particle, end_particle };
+        this->rest_length = rest_length;
+    }
+    bool operator==(const Edge& other) const {
+        return particle_ids == other.particle_ids;
+    }
+
+    bool operator<(const Edge& other) const {
+        if (particle_ids.x == other.particle_ids.x) {
+            return particle_ids.y < other.particle_ids.y;
+        }
+        else
+            return particle_ids.x < other.particle_ids.x;
+    }
 };
 
 struct Texture {
@@ -34,202 +75,194 @@ struct Texture {
     string path;
 };
 
-// Define a constraint struct
-struct DistanceConstraint {
-    int v1, v2; // Indices of the two vertices involved in the constraint
-    float restLength; // The desired distance between the vertices
-};
-
-struct VolumeConstraint {
-    int tetId;         // Index of the tetrahedron in tetIds
-    float restVolume;  // Rest volume of the tetrahedron
-};
 class Mesh {
 public:
     vector<Vertex> vertices;
     vector<unsigned int> indices;
     vector<Texture> textures;
-    std::vector<glm::vec4> tetIds; // Tetrahedra vertex indices
-    std::vector<DistanceConstraint> distanceConstraints; // Volume constraints
-    std::vector<VolumeConstraint> volumeConstraints; // Volume constraints
+    unsigned int VAO;
 
-    // Constructor
+    // soft body attributes
+    vector<Particle> particles;
+    vector<Particle> particle_reset;
+    unordered_map<int, vector<int>> particle_vertex_map;
+    vector<glm::vec4> tetraIds;
+    vector<Edge> edges;
+    float edge_compliance;
+    float volume_compliance;
+    bool is_soft;
+
     Mesh(vector<Vertex> vertices, vector<unsigned int> indices,
-        vector<Texture> textures, std::vector<glm::vec4> tetIds)
-        : vertices(vertices), indices(indices), textures(textures), tetIds(tetIds) {
+        vector<Texture> textures) {
+        this->vertices = vertices;
+        this->indices = indices;
+        this->textures = textures;
+        this->is_soft = false;
+
         setupMesh();
-        
-        setupDistanceConstraints(); // Initialize distance constraints
-        setupVolumeConstraints(); // Initialize volume constraints
-
-        initInverseMass();
     }
 
-    void initInverseMass() {
-        // Clear inverse masses and rest volumes
-        // Iterate through all tetrahedra
-        for (int i = 0; i < volumeConstraints.size(); i++) {
-            // Calculate the volume of the tetrahedron
-            float vol = volumeConstraints[i].restVolume;
+    void initSoftBody(const string& node_path, const string& tetIDpath,
+        float mass, float edge_compliance,
+        float volume_compliance) {
+        this->is_soft = true;
+        this->edge_compliance = edge_compliance;
+        this->volume_compliance = volume_compliance;
+        this->addParticles(node_path, mass);
+        this->addTetraIDs(tetIDpath);
+        this->calcEdges();
+    }
 
-            // Calculate the inverse mass for each vertex in the tetrahedron
-            //float pInvMass = (vol > 0.0f) ? 1.0f / (vol / 4.0f) : 0.0f;
-            float pInvMass = 0.25;
+    void addParticles(const string& path, float mass) {
+        fstream f(path);
+        std::string line_buffer;
 
-            // Add the inverse mass contribution to each vertex
-            vertices[tetIds[i].x].inverseMass += pInvMass;
-            vertices[tetIds[i].y].inverseMass += pInvMass;
-            vertices[tetIds[i].z].inverseMass += pInvMass;
-            vertices[tetIds[i].w].inverseMass += pInvMass;
+        regex reg("\\s+");
+
+        while (getline(f, line_buffer)) {
+            sregex_token_iterator iter(line_buffer.begin(), line_buffer.end(), reg,
+                -1);
+            sregex_token_iterator end;
+
+            vector<string> vec(iter, end);
+
+            float arg1 = std::stof(vec[0]);
+            float arg2 = std::stof(vec[1]);
+            float arg3 = std::stof(vec[2]);
+            Particle p = Particle({ arg1, arg2, arg3 }, mass);
+            this->particles.push_back(p);
+        }
+        f.close();
+        this->particle_reset = this->particles;
+        create_particle_vertex_map();
+        return;
+    }
+
+    void create_particle_vertex_map() {
+        const float epsilon = 0.001;
+        for (int i = 0; i < particles.size(); i++) {
+            for (int j = 0; j < vertices.size(); j++) {
+                if (glm::length(particles[i].pos - vertices[j].Position) <= epsilon) {
+                    this->particle_vertex_map[i].push_back(j);
+                }
+            }
         }
     }
 
-    // Function to initialize distance constraints
-    void setupDistanceConstraints() {
-        for (const auto& tet : tetIds) {
-            // Get the four vertices of the tetrahedron
-            int v0 = tet.x;
-            int v1 = tet.y;
-            int v2 = tet.z;
-            int v3 = tet.w;
+    void addTetraIDs(const string& path) {
+        fstream f(path);
+        std::string line_buffer;
 
-            // Add constraints for all edges of the tetrahedron
-            addDistanceConstraint(v0, v1);
-            addDistanceConstraint(v0, v2);
-            addDistanceConstraint(v0, v3);
-            addDistanceConstraint(v1, v2);
-            addDistanceConstraint(v1, v3);
-            addDistanceConstraint(v2, v3);
+        regex reg("\\s+");
+
+        glm::vec4 tet;
+
+        while (getline(f, line_buffer)) {
+            sregex_token_iterator iter(line_buffer.begin(), line_buffer.end(), reg,
+                -1);
+            sregex_token_iterator end;
+
+            vector<string> vec(iter, end);
+
+            tet.x = std::stof(vec[0]);
+            tet.y = std::stof(vec[1]);
+            tet.z = std::stof(vec[2]);
+            tet.w = std::stof(vec[3]);
+            this->tetraIds.push_back(tet);
+        }
+        f.close();
+    }
+
+    void calcEdges() {
+        for (auto t : tetraIds) {
+            Particle& point0 = particles[t.x];
+            Particle& point1 = particles[t.y];
+            Particle& point2 = particles[t.z];
+            Particle& point3 = particles[t.w];
+            Edge edge0 = Edge(t.x, t.y, glm::length(point0.pos - point1.pos));
+            Edge edge1 = Edge(t.x, t.z, glm::length(point0.pos - point2.pos));
+            Edge edge2 = Edge(t.x, t.w, glm::length(point0.pos - point3.pos));
+            Edge edge3 = Edge(t.y, t.z, glm::length(point1.pos - point2.pos));
+            Edge edge4 = Edge(t.y, t.w, glm::length(point1.pos - point3.pos));
+            Edge edge5 = Edge(t.z, t.w, glm::length(point2.pos - point3.pos));
+            this->edges.push_back(edge0);
+            this->edges.push_back(edge1);
+            this->edges.push_back(edge2);
+            this->edges.push_back(edge3);
+            this->edges.push_back(edge4);
+            this->edges.push_back(edge5);
+        }
+
+        // Remove consecutive duplicates
+        std::sort(this->edges.begin(), this->edges.end());
+        auto last = std::unique(this->edges.begin(), this->edges.end());
+        this->edges.erase(last, this->edges.end());
+    }
+
+    void pre_solve(float dt, glm::vec3 gravity) {
+        for (int i = 0; i < particles.size(); i++) {
+            if (particles[i].inv_mass == 0)
+                continue;
+            particles[i].velocity = particles[i].velocity + (gravity * dt);
+            particles[i].prev_pos = particles[i].pos;
+            particles[i].pos = particles[i].pos + particles[i].velocity * dt;
+            if (particles[i].pos.y + 2 < 0.001) {
+                particles[i].pos = particles[i].prev_pos;
+                particles[i].pos.y = -2;
+            }
         }
     }
 
-    // Function to add a distance constraint for a tetrahedron
-    void addDistanceConstraint(int v1, int v2) {
-        // Calculate the rest length (distance between the two vertices)
-        glm::vec3 p1 = vertices[v1].Position;
-        glm::vec3 p2 = vertices[v2].Position;
-        float restLength = glm::length(p2 - p1);
-
-        // Add the constraint to the list
-        distanceConstraints.push_back({ v1, v2, restLength });
-    }
-
-
-    // Function to initialize volume constraints
-    void setupVolumeConstraints() {
-        for (size_t i = 0; i < tetIds.size(); i++) {
-            addVolumeConstraint(i);
+    void post_solve(float dt) {
+        for (Particle& v : particles) {
+            if (1.0 / dt >= INFINITY)
+                continue;
+            v.velocity = (v.pos - v.prev_pos) * (static_cast<float>(1.0 / dt));
         }
     }
 
-    // Function to add a volume constraint for a tetrahedron
-    void addVolumeConstraint(int tetId) {
-        glm::vec4 tet = tetIds[tetId];
-        Vertex& v1 = vertices[tet.x];
-        Vertex& v2 = vertices[tet.y];
-        Vertex& v3 = vertices[tet.z];
-        Vertex& v4 = vertices[tet.w];
+    void solve_edges(float dt) {
+        double alpha = this->edge_compliance / dt / dt;
 
-        glm::vec3 edge1 = v2.Position - v1.Position;
-        glm::vec3 edge2 = v3.Position - v1.Position;
-        glm::vec3 edge3 = v4.Position - v1.Position;
-
-        // Calculate the signed volume
-        float signedVolume = glm::dot(edge1, glm::cross(edge2, edge3)) / 6.0f;
-
-        // Use the absolute value for the rest volume
-        float restVolume = std::abs(signedVolume);
-
-        // Add the volume constraint
-        volumeConstraints.push_back({ tetId, restVolume });
-    }
- 
-    void solveDistanceConstraint(const DistanceConstraint& constraint, std::vector<Vertex>& vertices, float deltaTSub) {
-        Vertex& v1 = vertices[constraint.v1];
-        Vertex& v2 = vertices[constraint.v2];
-
-        double alpha = 0.001f / deltaTSub / deltaTSub;
-       
-
-        float w = v1.inverseMass + v2.inverseMass;
-        if (w == 0) {
-            return;
-        }
-
-        glm::vec3 delta = v2.Position - v1.Position;
-        float distance = glm::length(delta);
-
-        const float epsilon = 1e-6f;
-        if (distance > epsilon) {
-            float constraintValue = distance - constraint.restLength;
-
-            // Compute gradients
-            glm::vec3 gradient1 = -delta / distance;
-            glm::vec3 gradient2 = delta / distance;
-
-
-            // Compute lambda
-            //float lambda = computeLambda(constraintValue, gradient1, gradient2, v1.inverseMass, v2.inverseMass, deltaTSub);
-            float lambda = -constraintValue / (w + alpha);
-
-            // Apply correction
-            v1.Position += lambda * v1.inverseMass * gradient1;
-            v2.Position += lambda * v2.inverseMass * gradient2;
+        for (Edge& e : this->edges) {
+            Particle& point0 = particles[e.particle_ids.x];
+            Particle& point1 = particles[e.particle_ids.y];
+            float w = point0.inv_mass + point1.inv_mass;
+            if (w == 0)
+                continue;
+            glm::vec3 diffVec = point0.pos - point1.pos;
+            float len = glm::length(diffVec);
+            if (len == 0)
+                continue;
+            glm::vec3 normalizedVec = diffVec * (1.0f / len);
+            float constraint_diff = len - e.rest_length;
+            float l = -constraint_diff / (w + alpha);
+            point0.pos = point0.pos + (normalizedVec * l * point0.inv_mass);
+            point1.pos = point1.pos + (normalizedVec * -l * point1.inv_mass);
         }
     }
 
-    void solveVolumeConstraint(const VolumeConstraint& constraint, std::vector<Vertex>& vertices, std::vector<glm::vec4>& tetIds, float deltaTSub) {
-        glm::vec4 tet = tetIds[constraint.tetId];
-        Vertex& v1 = vertices[tet.x];
-        Vertex& v2 = vertices[tet.y];
-        Vertex& v3 = vertices[tet.z];
-        Vertex& v4 = vertices[tet.w];
-
-        glm::vec3 edge1 = v2.Position - v1.Position;
-        glm::vec3 edge2 = v3.Position - v1.Position;
-        glm::vec3 edge3 = v4.Position - v1.Position;
-
-        float currentVolume = std::abs(glm::dot(edge1, glm::cross(edge2, edge3))) / 6.0f;
-        float constraintValue = currentVolume - constraint.restVolume;
-
-        // Compute gradients
-        glm::vec3 gradient1 = glm::cross(edge2, edge3) / 6.0f;
-        glm::vec3 gradient2 = glm::cross(edge3, edge1) / 6.0f;
-        glm::vec3 gradient3 = glm::cross(edge1, edge2) / 6.0f;
-        glm::vec3 gradient4 = -(gradient1 + gradient2 + gradient3);
-
-
-        // Compute lambda
-        float lambda = computeLambda(constraintValue, gradient1, gradient2, gradient3, gradient4,
-            v1.inverseMass, v2.inverseMass, v3.inverseMass, v4.inverseMass, deltaTSub);
-
-        // Apply correction
-        v1.Position += lambda * v1.inverseMass * gradient1;
-        v2.Position += lambda * v2.inverseMass * gradient2;
-        v3.Position += lambda * v3.inverseMass * gradient3;
-        v4.Position += lambda * v4.inverseMass * gradient4;
+    void solve_volume(float dt) {
+        return;
     }
 
-    float computeLambda(float constraintValue, const glm::vec3& gradient1, const glm::vec3& gradient2,
-        float inverseMass1, float inverseMass2, float deltaTSub) {
-        float denominator = (1.0f / stiffness) / (deltaTSub * deltaTSub);
-        denominator += inverseMass1 * glm::dot(gradient1, gradient1);
-        denominator += inverseMass2 * glm::dot(gradient2, gradient2);
-
-        return -constraintValue / denominator;
+    void solve(float dt) { 
+        solve_edges(dt);
+        solve_volume(dt);
+    
     }
 
-    float computeLambda(float constraintValue, const glm::vec3& gradient1, const glm::vec3& gradient2,
-        const glm::vec3& gradient3, const glm::vec3& gradient4,
-        float inverseMass1, float inverseMass2, float inverseMass3, float inverseMass4, float deltaTSub) {
-        float denominator = (1.0f / stiffness) / (deltaTSub * deltaTSub);
-        denominator += inverseMass1 * glm::dot(gradient1, gradient1);
-        denominator += inverseMass2 * glm::dot(gradient2, gradient2);
-        denominator += inverseMass3 * glm::dot(gradient3, gradient3);
-        denominator += inverseMass4 * glm::dot(gradient4, gradient4);
-
-        return -constraintValue / denominator;
+    void update(float dt, int substeps, glm::vec3 gravity) {
+        float sdt = dt / substeps;
+        for (int i = 0; i < substeps; i++) {
+            pre_solve(sdt, gravity);
+            solve(sdt);
+            post_solve(sdt);
+        }
+        update_vertices();
     }
+
+    void reset() { this->particles = this->particle_reset; }
 
     void Draw(Shader& shader) {
         unsigned int diffuseNr = 1;
@@ -240,14 +273,23 @@ public:
             glActiveTexture(GL_TEXTURE0 + i);
             string number;
             string name = textures[i].type;
-            if (name == "texture_diffuse")
+            if (name == "texture_diffuse") {
                 number = std::to_string(diffuseNr++);
-            else if (name == "texture_specular")
+                shader.setInt("material.diffuse", i);
+            }
+            else if (name == "texture_specular") {
                 number = std::to_string(specularNr++);
-            else if (name == "texture_normal")
+                shader.setInt("material.specular", i);
+            }
+            else if (name == "texture_normal") {
                 number = std::to_string(normalNr++);
-            else if (name == "texture_height")
+                shader.setInt("material.normal", i);
+            }
+            else if (name == "texture_height") {
                 number = std::to_string(heightNr++);
+                shader.setInt("material.height", i);
+            }
+            shader.setFloat("material.shininess", 64.0f);
 
             glUniform1i(glGetUniformLocation(shader.ID, (name + number).c_str()), i);
             glBindTexture(GL_TEXTURE_2D, textures[i].id);
@@ -259,10 +301,9 @@ public:
         glBindVertexArray(0);
 
         glActiveTexture(GL_TEXTURE0);
-    };
+    }
 
-//private:
-    unsigned int VAO;
+private:
     unsigned int VBO, EBO;
 
     void setupMesh() {
@@ -299,6 +340,18 @@ public:
         glEnableVertexAttribArray(6);
         glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex),
             (void*)offsetof(Vertex, m_Weights));
+        glBindVertexArray(0);
+    }
+
+    void update_vertices() {
+        for (int i = 0; i < particles.size(); i++) {
+            for (auto& j : particle_vertex_map[i]) {
+                vertices[j].Position = particles[i].pos;
+            }
+        }
+        glBindVertexArray(VAO);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.size() * sizeof(Vertex),
+            &vertices[0]);
         glBindVertexArray(0);
     }
 };
