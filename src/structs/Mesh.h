@@ -137,8 +137,8 @@ public:
             vector<string> vec(iter, end);
 
             float arg1 = std::stof(vec[0]);
-            float arg2 = std::stof(vec[1]);
-            float arg3 = std::stof(vec[2]);
+            float arg2 = std::stof(vec[2]);
+            float arg3 = std::stof(vec[1]);
             Particle p = Particle({ arg1, arg2, arg3 }, mass);
             this->particles.push_back(p);
         }
@@ -149,7 +149,7 @@ public:
     }
 
     void create_particle_vertex_map() {
-        const float epsilon = 0.01f;
+        const float epsilon = 0.0005f; //0.0005f works for cube
         for (int i = 0; i < particles.size(); i++) {
             for (int j = 0; j < vertices.size(); j++) {
                 if (std::abs(glm::length(particles[i].pos - vertices[j].Position)) <= epsilon) {
@@ -323,6 +323,11 @@ public:
             post_solve(sdt);
         }
         update_vertices();
+    }
+
+    void updateCompliance(float edge_compliance, float volume_compliance) {
+        this->edge_compliance = edge_compliance;
+        this->volume_compliance = volume_compliance;
     }
 
     void reset() { this->particles = this->particle_reset; }

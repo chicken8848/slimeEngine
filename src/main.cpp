@@ -21,16 +21,22 @@ float deltaTime = 0.0f; // Time between frames
 float lastFrame = 0.0f; // Time of the last frame
 
 // Camera
-Camera ourCam = Camera(glm::vec3(0.0f, 0.0f, 5.0f)); // Camera object
+Camera ourCam = Camera(glm::vec3(0.0f, -3.0f, 5.0f)); // Camera object
 bool first_mouse = true; // For mouse movement
 float lastX = SCR_WIDTH / 2.0f; // Last mouse X position
 float lastY = SCR_HEIGHT / 2.0f; // Last mouse Y position
 
 // Physics constants
-const float gravity = -0.5f; // Gravity
-const float groundY = -2.0f; // Ground level
-const float damping = 0.5f; // Velocity damping
-const int constraintIterations = 5; // Number of constraint iterations
+//const float groundY = -2.0f; // Ground level
+//const float damping = 0.5f; // Velocity damping
+//const int constraintIterations = 5; // Number of constraint iterations
+
+float mass = 0.01f; // higher = more jiggly, 0.01 is good
+float edge_compliance = 0.01f; // higher = more jiggly, 0.01 is good
+float volume_compliance = 0.1f;
+
+int substeps = 1; //more = faster?? 1 to 10 is good
+bool reset = false;
 
 // Function declarations
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -80,14 +86,16 @@ int main() {
     // Load model
     stbi_set_flip_vertically_on_load(true);
     //Model testModel(FileSystem::getPath("assets/pudding/tetrapudding.obj"));
-    Model testModel("C:/Users/zq/Desktop/school/CSD6/graphics/jiggle/tetracube.obj");
+    //Model testModel("C:/Users/zq/Desktop/school/CSD6/graphics/jiggle/tetracube.obj");
+    Model testModel("C:/Users/zq/Desktop/school/CSD6/graphics/jiggle/tetrapuddingface.obj");
 
-    float mass = 0.01f; // higher = more jiggly, 1 is good
-    float edge_compliance = 0.001f; // higher = more jiggly, 0.01 is good
-    float volume_compliance = 0.001f;
 
-    testModel.meshes[0].initSoftBody(FileSystem::getPath("assets/pudding/cube10.nodes"),
-        FileSystem::getPath("assets/pudding/cube10.ele"), mass, edge_compliance, volume_compliance);
+
+    //testModel.meshes[0].initSoftBody(FileSystem::getPath("assets/pudding/cube10.nodes"),
+    //    FileSystem::getPath("assets/pudding/cube10.ele"), mass, edge_compliance, volume_compliance);
+
+    testModel.meshes[0].initSoftBody(FileSystem::getPath("assets/pudding/pudding.nodes"),
+        FileSystem::getPath("assets/pudding/pudding.ele"), mass, edge_compliance, volume_compliance);
 
     // Set up point lights
     glm::vec3 pointLightPositions[] = {
@@ -151,12 +159,15 @@ int main() {
         ourShader.setMat4("model", model);
         
         //if (currentFrame > 5) {
-        int substeps = 1; //more = faster?? 1 to 10 is good
+        
         glm::vec3 gravity = { 0, -10, 0 };
        
         testModel.meshes[0].update(deltaTime, substeps, gravity);
-      
-
+        testModel.meshes[0].updateCompliance(edge_compliance, volume_compliance);
+        if (reset) {
+            testModel.meshes[0].reset();
+            reset = false;
+        }
         testModel.Draw(ourShader);
         
 
@@ -213,4 +224,37 @@ void processInput(GLFWwindow* window) {
         ourCam.ProcessKeyboard(LEFT, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         ourCam.ProcessKeyboard(RIGHT, deltaTime);
+
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
+        if (edge_compliance > 0.01) {
+            edge_compliance -= 0.0001;
+        }
+    }
+    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
+        edge_compliance += 0.0001;
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS) {
+        if (volume_compliance >= 0.01) {
+            volume_compliance -= 0.001;
+            //cout << volume_compliance << endl;
+        }
+    }
+    if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS) {
+        volume_compliance += 0.001;
+        //cout << volume_compliance << endl;
+    }
+    if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
+        //reset();
+        reset = true;
+    }
+    if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS) {
+        if (substeps >= 1) {
+            substeps -= 1;
+        }
+        
+    }
+    if (glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS) {
+        substeps += 1;
+    }
 }
