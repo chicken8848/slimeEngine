@@ -26,22 +26,23 @@ bool first_mouse = true; // For mouse movement
 float lastX = SCR_WIDTH / 2.0f; // Last mouse X position
 float lastY = SCR_HEIGHT / 2.0f; // Last mouse Y position
 
-// Physics constants
-//const float groundY = -2.0f; // Ground level
-//const float damping = 0.5f; // Velocity damping
-//const int constraintIterations = 5; // Number of constraint iterations
+Model* testModel;
 
 float mass = 0.01f; // higher = more jiggly, 0.01 is good
 float edge_compliance = 0.01f; // higher = more jiggly, 0.01 is good
 float volume_compliance = 0.1f;
 
-int substeps = 1; //more = faster?? 1 to 10 is good
+int substeps = 10; //more = faster?? 1 to 10 is good
 bool reset = false;
+
+//bool dragging = false;
+//int selectedVertexIndex = -1;
 
 // Function declarations
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn);
 void scroll_callback(GLFWwindow* window, double xpos, double ypos);
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 void processInput(GLFWwindow* window);
 
 
@@ -72,7 +73,10 @@ int main() {
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetScrollCallback(window, scroll_callback);
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetMouseButtonCallback(window, mouse_button_callback);
+
+    //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 
     // Enable depth testing
     glEnable(GL_DEPTH_TEST);
@@ -87,14 +91,16 @@ int main() {
     stbi_set_flip_vertically_on_load(true);
     //Model testModel(FileSystem::getPath("assets/pudding/tetrapudding.obj"));
     //Model testModel("C:/Users/zq/Desktop/school/CSD6/graphics/jiggle/tetracube.obj");
-    Model testModel("C:/Users/zq/Desktop/school/CSD6/graphics/jiggle/tetrapuddingface.obj");
+    //Model testModel("C:/Users/zq/Desktop/school/CSD6/graphics/jiggle/tetrapuddingface.obj");
+    testModel = new Model("C:/Users/zq/Desktop/school/CSD6/graphics/jiggle/tetrapuddingface.obj");
+
 
 
 
     //testModel.meshes[0].initSoftBody(FileSystem::getPath("assets/pudding/cube10.nodes"),
     //    FileSystem::getPath("assets/pudding/cube10.ele"), mass, edge_compliance, volume_compliance);
 
-    testModel.meshes[0].initSoftBody(FileSystem::getPath("assets/pudding/pudding.nodes"),
+    testModel->meshes[0].initSoftBody(FileSystem::getPath("assets/pudding/pudding.nodes"),
         FileSystem::getPath("assets/pudding/pudding.ele"), mass, edge_compliance, volume_compliance);
 
     // Set up point lights
@@ -162,13 +168,13 @@ int main() {
         
         glm::vec3 gravity = { 0, -10, 0 };
        
-        testModel.meshes[0].update(deltaTime, substeps, gravity);
-        testModel.meshes[0].updateCompliance(edge_compliance, volume_compliance);
+        testModel->meshes[0].update(deltaTime, substeps, gravity);
+        //testModel->meshes[0].updateCompliance(edge_compliance, volume_compliance);
         if (reset) {
-            testModel.meshes[0].reset();
+            testModel->meshes[0].reset();
             reset = false;
         }
-        testModel.Draw(ourShader);
+        testModel->Draw(ourShader);
         
 
         // Swap buffers and poll events
@@ -205,6 +211,45 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn) {
     ourCam.ProcessMouseMovement(xoffset, yoffset, true);
 }
 
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
+    if (button == GLFW_MOUSE_BUTTON_LEFT) {
+        if (action == GLFW_PRESS) {
+            double xpos, ypos;
+            glfwGetCursorPos(window, &xpos, &ypos);
+
+            float ndcX = (2.0f * xpos / SCR_WIDTH) - 1.0f;
+            float ndcY = 1.0f - (2.0f * ypos / SCR_HEIGHT);
+
+            glm::vec2 mousePos = glm::vec2(ndcX, ndcY);
+            //cout << "Mouse Position: " << mousePos.x << ", " << mousePos.y << endl;  // Debugging
+
+            float threshold = 0.05f;
+
+            //cout << "Mouse button pressed" << endl;
+
+            //glm::vec3 vertexPosition = testModel->meshes[0].vertices[0].Position;
+            testModel->meshes[0].particles[0].pos += glm::vec3(0, 0.1, 0); // I guess that works
+            cout << testModel->meshes[0].particles[0].pos.y << endl;
+
+            //for (int i = 0; i < testModel->meshes[0].particles.size(); ++i) {
+            //    glm::vec2 v2D = glm::vec2(testModel->meshes[0].particles[i].pos.x,
+            //        testModel->meshes[0].particles[i].pos.y);
+            //    //cout << "Checking vertex " << i << ": " << v2D.x << ", " << v2D.y << endl;  // Debugging
+            //    if (glm::distance(v2D, mousePos) < threshold) {
+            //        dragging = true;
+            //        cout << "dragging";
+            //        selectedVertexIndex = i;
+            //        break;
+            //    }
+            //}
+        }
+        else if (action == GLFW_RELEASE) {
+            //dragging = false;
+        }
+    }
+}
+
+
 // Callback for mouse scroll
 void scroll_callback(GLFWwindow* window, double xpos, double ypos) {
     ourCam.ProcessMouseScroll(static_cast<float>(ypos));
@@ -225,36 +270,55 @@ void processInput(GLFWwindow* window) {
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         ourCam.ProcessKeyboard(RIGHT, deltaTime);
 
-    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
-        if (edge_compliance > 0.01) {
-            edge_compliance -= 0.0001;
+
+    if (glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS) {
+        if (testModel->meshes[0].edge_compliance > 0.01) {
+            testModel->meshes[0].edge_compliance -= 0.0001;
+            cout << "Edge compliance: " << testModel->meshes[0].edge_compliance << endl;
         }
     }
-    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
-        edge_compliance += 0.0001;
+    if (glfwGetKey(window, GLFW_KEY_Y) == GLFW_PRESS) {
+        testModel->meshes[0].edge_compliance += 0.0001;
+        cout << "Edge compliance: " << testModel->meshes[0].edge_compliance << endl;
     }
 
-    if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS) {
+    if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS) {
         if (volume_compliance >= 0.01) {
-            volume_compliance -= 0.001;
-            //cout << volume_compliance << endl;
+            testModel->meshes[0].volume_compliance -= 0.001;
+            cout << "Volume compliance: " << testModel->meshes[0].volume_compliance << endl;
         }
     }
+    if (glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS) {
+        testModel->meshes[0].volume_compliance += 0.001;
+        cout << "Volume compliance: " << testModel->meshes[0].volume_compliance << endl;
+    }
+    if (glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS) {
+        if (substeps >= 1) {
+            substeps -= 1;
+            cout << "Substeps: " << substeps << endl;
+        }
+    }
+    if (glfwGetKey(window, GLFW_KEY_N) == GLFW_PRESS) {
+        substeps += 1;
+        cout << "Substeps: " << substeps << endl;
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS) {
+        testModel->meshes[0].particles.back().pos += glm::vec3(-0.01f, 0, 0);
+    }
     if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS) {
-        volume_compliance += 0.001;
-        //cout << volume_compliance << endl;
+        testModel->meshes[0].particles.back().pos += glm::vec3(0.01f, 0, 0);
     }
     if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
         //reset();
         reset = true;
+        testModel->meshes[0].edge_compliance = 0.01;
+
     }
-    if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS) {
-        if (substeps >= 1) {
-            substeps -= 1;
-        }
-        
-    }
+
     if (glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS) {
-        substeps += 1;
+        for (int i = 0; i < testModel->meshes[0].particles.size(); ++i) {
+            testModel->meshes[0].particles[i].pos += glm::vec3(0, 0.001f, 0);
+        }
     }
 }
