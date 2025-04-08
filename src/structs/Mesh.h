@@ -255,9 +255,11 @@ public:
         continue;
       v.velocity =
           (v.pos - v.prev_pos) * 0.999f * (static_cast<float>(1.0 / dt));
+      /*
       if (glm::length(v.velocity) <= 0.0002) {
         v.velocity = {0, 0, 0};
       }
+      */
     }
   }
 

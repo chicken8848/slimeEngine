@@ -26,6 +26,8 @@
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
+glm::vec3 gravity = {0, -10, 0};
+
 float mixValue = 0.2;
 
 glm::mat4 view;
@@ -38,6 +40,9 @@ bool first_mouse = true;
 
 float lastX = SCR_WIDTH / 2.0f;
 float lastY = SCR_HEIGHT / 2.0f;
+
+glm::vec3 mouse_offset = {0, 0, 0};
+bool grab;
 
 // Create callback function for resizing window
 void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
@@ -58,6 +63,8 @@ void mouse_callback(GLFWwindow *window, double xposIn, double yposIn) {
   lastX = xpos;
   lastY = ypos;
   ourCam.ProcessMouseMovement(xoffset, yoffset, true);
+  mouse_offset.x = xoffset;
+  mouse_offset.y = yoffset;
 }
 
 void scroll_callback(GLFWwindow *window, double xpos, double ypos) {
@@ -101,7 +108,11 @@ void processInput(GLFWwindow *window) {
   if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
     ourCam.ProcessKeyboard(DOWN, deltaTime);
   }
-  if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
+  if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS) {
+    grab = true;
+  }
+  if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
+    grab = false;
   }
 }
 int main() {
@@ -233,7 +244,7 @@ int main() {
   //     FileSystem::getPath("assets/Cube/pudding.ele"), 0.01f, 0.02f, 0.02f);
   testModel.meshes[0].initSoftBody(
       FileSystem::getPath("assets/pudding/pudding.nodes"),
-      FileSystem::getPath("assets/pudding/pudding.ele"), 0.01f, 0.1f, 1.0f);
+      FileSystem::getPath("assets/pudding/pudding.ele"), 0.01f, 0.1f, 99999.0f);
 
   glEnable(GL_BLEND); // you enable blending function
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -285,12 +296,23 @@ int main() {
                   1.0f)); // it's a bit too big for our scene, so scale it down
     ourShader.setMat4("model", model);
     testModel.Draw(ourShader);
-    testModel.meshes[0].update(deltaTime, 100, {0, -10.0, 0});
+    testModel.meshes[0].update(deltaTime, 1, gravity);
 
     if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
       testModel.meshes[0].reset();
     }
-
+    float default_mass = testModel.meshes[0].particles[0].inv_mass;
+    if (grab) {
+      // testModel.meshes[0].particles[0].pos += 0.5f * mouse_offset;
+      testModel.meshes[0].particles[0].inv_mass = 0.0f;
+      testModel.meshes[0].particles[0].pos =
+          ourCam.Position + 5.0f * ourCam.Front;
+      testModel.meshes[0].particles[0].prev_pos =
+          testModel.meshes[0].particles[0].pos;
+    } else {
+      gravity = {0, -10, 0};
+      testModel.meshes[0].particles[0].inv_mass = default_mass;
+    }
     glfwSwapBuffers(window);
     glfwPollEvents();
   }
