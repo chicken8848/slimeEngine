@@ -95,6 +95,14 @@ void processInput(GLFWwindow *window) {
   if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
     ourCam.ProcessKeyboard(RIGHT, deltaTime);
   }
+  if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+    ourCam.ProcessKeyboard(UP, deltaTime);
+  }
+  if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
+    ourCam.ProcessKeyboard(DOWN, deltaTime);
+  }
+  if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
+  }
 }
 int main() {
   glfwInit();
@@ -134,7 +142,7 @@ int main() {
 
   glm::vec3 pointLightPositions[] = {
       glm::vec3(0.7f, 0.2f, 2.0f), glm::vec3(2.3f, -3.3f, -4.0f),
-      glm::vec3(-4.0f, 2.0f, -12.0f), glm::vec3(0.0f, 0.0f, -3.0f)};
+      glm::vec3(-4.0f, 2.0f, -12.0f), glm::vec3(1.0f, 2.0f, 3.0f)};
 
   float vertices[] = {
       -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, 0.5f,  -0.5f, -0.5f, 1.0f, 0.0f,
@@ -205,13 +213,27 @@ int main() {
   ourShader.setFloat("pointLights[0].linear", 0.09f);
   ourShader.setFloat("pointLights[0].quadratic", 0.032f);
 
-  ourCam.Position = {0, 0, -1.0f};
+  ourShader.setVec3("pointLights[0].position", pointLightPositions[3]);
+  ourShader.setVec3("pointLights[0].ambient", 0.1f, 0.1f, 0.1f);
+  ourShader.setVec3("pointLights[0].diffuse", 0.8f, 0.8f, 0.8f);
+  ourShader.setVec3("pointLights[0].specular", 1.0f, 1.0f, 1.0f);
+  ourShader.setFloat("pointLights[0].constant", 1.0f);
+  ourShader.setFloat("pointLights[0].linear", 0.09f);
+  ourShader.setFloat("pointLights[0].quadratic", 0.032f);
 
-  Model testModel(FileSystem::getPath("assets/Cube/Untitled.obj"));
+  ourCam.Position = {0, 1, 5.0f};
 
+  // Model testModel(FileSystem::getPath("assets/Cube/Untitled.obj"));
+  Model testModel(FileSystem::getPath("assets/pudding/pudding.obj"));
+
+  std::cout << testModel.meshes.size() << std::endl;
+
+  // testModel.meshes[0].initSoftBody(
+  //     FileSystem::getPath("assets/Cube/pudding.nodes"),
+  //     FileSystem::getPath("assets/Cube/pudding.ele"), 0.01f, 0.02f, 0.02f);
   testModel.meshes[0].initSoftBody(
-      FileSystem::getPath("assets/Cube/pudding.nodes"),
-      FileSystem::getPath("assets/Cube/pudding.ele"), 0.01, 0.02f, 0.02f);
+      FileSystem::getPath("assets/pudding/pudding.nodes"),
+      FileSystem::getPath("assets/pudding/pudding.ele"), 0.01f, 0.1f, 1.0f);
 
   glEnable(GL_BLEND); // you enable blending function
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -263,7 +285,11 @@ int main() {
                   1.0f)); // it's a bit too big for our scene, so scale it down
     ourShader.setMat4("model", model);
     testModel.Draw(ourShader);
-    testModel.meshes[0].update(deltaTime, 10, {0, -10, 0});
+    testModel.meshes[0].update(deltaTime, 100, {0, -10.0, 0});
+
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
+      testModel.meshes[0].reset();
+    }
 
     glfwSwapBuffers(window);
     glfwPollEvents();

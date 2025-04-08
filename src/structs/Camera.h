@@ -11,7 +11,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 
-enum Camera_Movement { FORWARD, BACKWARD, LEFT, RIGHT };
+enum Camera_Movement { FORWARD, BACKWARD, LEFT, RIGHT, UP, DOWN };
 
 // default values
 const float YAW = -90.0f;
@@ -75,6 +75,12 @@ public:
     }
     if (direction == LEFT) {
       Position -= Right * velocity;
+    }
+    if (direction == UP) {
+      Position += WorldUp * velocity;
+    }
+    if (direction == DOWN) {
+      Position -= WorldUp * velocity;
     }
   }
 

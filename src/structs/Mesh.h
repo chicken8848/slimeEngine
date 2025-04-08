@@ -3,6 +3,7 @@
 
 #include <glad/glad.h> // holds all OpenGL type declarations
 
+#include <glm/geometric.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -17,6 +18,13 @@
 using namespace std;
 
 #define MAX_BONE_INFLUENCE 4
+
+struct Vec3Hash {
+  size_t operator()(const glm::ivec3 &v) const {
+    return std::hash<int>()(v.x) ^ (std::hash<int>()(v.y) << 1) ^
+           (std::hash<int>()(v.z) << 2);
+  }
+};
 
 struct Particle {
   glm::vec3 pos;
@@ -131,8 +139,8 @@ public:
       vector<string> vec(iter, end);
 
       float arg1 = std::stof(vec[0]);
-      float arg2 = std::stof(vec[1]);
-      float arg3 = std::stof(vec[2]);
+      float arg2 = std::stof(vec[2]);
+      float arg3 = std::stof(vec[1]);
       Particle p = Particle({arg1, arg2, arg3}, mass);
       this->particles.push_back(p);
     }
@@ -143,7 +151,7 @@ public:
   }
 
   void create_particle_vertex_map() {
-    const float epsilon = 0.001;
+    const float epsilon = 0.001f;
     for (int i = 0; i < particles.size(); i++) {
       for (int j = 0; j < vertices.size(); j++) {
         if (glm::length(particles[i].pos - vertices[j].Position) <= epsilon) {
@@ -189,7 +197,15 @@ public:
     glm::vec3 tempVec2 = point2.pos - point0.pos;
     glm::vec3 tempVec3 = point3.pos - point0.pos;
 
-    return glm::abs(glm::dot(glm::cross(tempVec1, tempVec2), tempVec3)) / 6.0f;
+    float tetVolume =
+        glm::abs(glm::dot(glm::cross(tempVec1, tempVec2), tempVec3)) / 6.0f;
+
+    point0.inv_mass = 1 / (tetVolume / 4);
+    point1.inv_mass = 1 / (tetVolume / 4);
+    point2.inv_mass = 1 / (tetVolume / 4);
+    point3.inv_mass = 1 / (tetVolume / 4);
+
+    return tetVolume;
   }
 
   void calcEdges() {
@@ -226,9 +242,9 @@ public:
       particles[i].velocity = particles[i].velocity + (gravity * dt);
       particles[i].prev_pos = particles[i].pos;
       particles[i].pos = particles[i].pos + particles[i].velocity * dt;
-      if (particles[i].pos.y <= 0) {
+      if (particles[i].pos.y <= -2) {
         particles[i].pos = particles[i].prev_pos;
-        particles[i].pos.y = 0;
+        particles[i].pos.y = -2;
       }
     }
   }
@@ -237,7 +253,11 @@ public:
     for (Particle &v : particles) {
       if (1.0 / dt >= INFINITY)
         continue;
-      v.velocity = (v.pos - v.prev_pos) * (static_cast<float>(1.0 / dt));
+      v.velocity =
+          (v.pos - v.prev_pos) * 0.999f * (static_cast<float>(1.0 / dt));
+      if (glm::length(v.velocity) <= 0.0002) {
+        v.velocity = {0, 0, 0};
+      }
     }
   }
 
