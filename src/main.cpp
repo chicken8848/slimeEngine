@@ -234,17 +234,15 @@ int main() {
 
   ourCam.Position = {0, 1, 5.0f};
 
-  // Model testModel(FileSystem::getPath("assets/Cube/Untitled.obj"));
-  Model testModel(FileSystem::getPath("assets/pudding/pudding.obj"));
+  Model testModel(FileSystem::getPath("assets/Cube/Untitled.obj"));
+  // Model testModel(FileSystem::getPath("assets/pudding/pudding.obj"));
 
-  std::cout << testModel.meshes.size() << std::endl;
-
-  // testModel.meshes[0].initSoftBody(
-  //     FileSystem::getPath("assets/Cube/pudding.nodes"),
-  //     FileSystem::getPath("assets/Cube/pudding.ele"), 0.01f, 0.02f, 0.02f);
   testModel.meshes[0].initSoftBody(
-      FileSystem::getPath("assets/pudding/pudding.nodes"),
-      FileSystem::getPath("assets/pudding/pudding.ele"), 0.01f, 0.1f, 99999.0f);
+      FileSystem::getPath("assets/Cube/pudding.nodes"),
+      FileSystem::getPath("assets/Cube/pudding.ele"), 0.01f, 0.02f, 0.1f);
+  // testModel.meshes[0].initSoftBody(
+  // FileSystem::getPath("assets/pudding/pudding.nodes"),
+  // FileSystem::getPath("assets/pudding/pudding.ele"), 0.01f, 0.01f, 0.1f);
 
   glEnable(GL_BLEND); // you enable blending function
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -296,22 +294,19 @@ int main() {
                   1.0f)); // it's a bit too big for our scene, so scale it down
     ourShader.setMat4("model", model);
     testModel.Draw(ourShader);
-    testModel.meshes[0].update(deltaTime, 1, gravity);
+    testModel.meshes[0].update(deltaTime, 2, gravity);
 
     if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
       testModel.meshes[0].reset();
     }
-    float default_mass = testModel.meshes[0].particles[0].inv_mass;
     if (grab) {
       // testModel.meshes[0].particles[0].pos += 0.5f * mouse_offset;
-      testModel.meshes[0].particles[0].inv_mass = 0.0f;
+      // testModel.meshes[0].particles[0].inv_mass = 0.0f;
       testModel.meshes[0].particles[0].pos =
           ourCam.Position + 5.0f * ourCam.Front;
       testModel.meshes[0].particles[0].prev_pos =
           testModel.meshes[0].particles[0].pos;
     } else {
-      gravity = {0, -10, 0};
-      testModel.meshes[0].particles[0].inv_mass = default_mass;
     }
     glfwSwapBuffers(window);
     glfwPollEvents();

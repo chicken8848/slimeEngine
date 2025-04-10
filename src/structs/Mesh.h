@@ -182,6 +182,12 @@ public:
       tet.particle_ids.z = std::stoi(vec[2]);
       tet.particle_ids.w = std::stoi(vec[3]);
       tet.rest_volume = getTetVolume(tet.particle_ids);
+
+      particles[tet.particle_ids.x].inv_mass = 1 / (tet.rest_volume / 4);
+      particles[tet.particle_ids.y].inv_mass = 1 / (tet.rest_volume / 4);
+      particles[tet.particle_ids.z].inv_mass = 1 / (tet.rest_volume / 4);
+      particles[tet.particle_ids.w].inv_mass = 1 / (tet.rest_volume / 4);
+
       this->tetrahedrons.push_back(tet);
     }
     f.close();
@@ -199,11 +205,6 @@ public:
 
     float tetVolume =
         glm::abs(glm::dot(glm::cross(tempVec1, tempVec2), tempVec3)) / 6.0f;
-
-    point0.inv_mass = 1 / (tetVolume / 4);
-    point1.inv_mass = 1 / (tetVolume / 4);
-    point2.inv_mass = 1 / (tetVolume / 4);
-    point3.inv_mass = 1 / (tetVolume / 4);
 
     return tetVolume;
   }
