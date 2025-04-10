@@ -203,8 +203,7 @@ public:
     glm::vec3 tempVec2 = point2.pos - point0.pos;
     glm::vec3 tempVec3 = point3.pos - point0.pos;
 
-    float tetVolume =
-        glm::abs(glm::dot(glm::cross(tempVec1, tempVec2), tempVec3)) / 6.0f;
+    float tetVolume = glm::dot(glm::cross(tempVec1, tempVec2), tempVec3) / 6.0f;
 
     return tetVolume;
   }

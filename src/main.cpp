@@ -239,10 +239,11 @@ int main() {
 
   testModel.meshes[0].initSoftBody(
       FileSystem::getPath("assets/Cube/pudding.nodes"),
-      FileSystem::getPath("assets/Cube/pudding.ele"), 0.01f, 0.02f, 0.1f);
+      FileSystem::getPath("assets/Cube/pudding.ele"), 0.01f, 0.02f, 0.01f);
   // testModel.meshes[0].initSoftBody(
-  // FileSystem::getPath("assets/pudding/pudding.nodes"),
-  // FileSystem::getPath("assets/pudding/pudding.ele"), 0.01f, 0.01f, 0.1f);
+  //     FileSystem::getPath("assets/pudding/pudding.nodes"),
+  //     FileSystem::getPath("assets/pudding/pudding.ele"), 0.01f, 0.01f,
+  //     0.001f);
 
   glEnable(GL_BLEND); // you enable blending function
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
