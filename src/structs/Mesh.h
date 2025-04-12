@@ -122,8 +122,13 @@ public:
         this->is_soft = true;
         this->edge_compliance = edge_compliance;
         this->volume_compliance = volume_compliance;
-        this->addParticles(node_path, mass);
-        this->addTetraIDs(tetIDpath);
+
+        //this->addParticles(node_path, mass);
+        //this->addTetraIDs(tetIDpath);
+
+        this->addParticlesTetGen(node_path, mass);
+        this->addTetraIDsTetGen(tetIDpath);
+
         this->calcEdges();
     }
 
@@ -145,12 +150,6 @@ public:
             float arg3 = std::stof(vec[1]);
             Particle p = Particle({ arg1, arg2, arg3 }, mass);
 
-            // If the particle is on the floor (y = -5), make it static
-            if (p.pos.y <= -5.0f) {
-                p.inv_mass = 0.0f;
-                p.velocity = glm::vec3(0.0f);
-            }
-
             this->particles.push_back(p);
         }
         f.close();
@@ -159,8 +158,50 @@ public:
         return;
     }
 
+    void addParticlesTetGen(const std::string& path, float mass) {
+        std::ifstream file(path);
+        std::string line;
+        std::regex whitespace("\\s+");
+
+        while (std::getline(file, line)) {
+            // Remove leading/trailing spaces
+            line = std::regex_replace(line, std::regex("^\\s+|\\s+$"), "");
+
+            if (line.empty() || line[0] == '#') continue; // skip empty/comment lines
+
+            std::sregex_token_iterator iter(line.begin(), line.end(), whitespace, -1);
+            std::sregex_token_iterator end;
+            std::vector<std::string> tokens(iter, end);
+
+            if (tokens.size() < 4) {
+                std::cerr << "Skipping short/malformed line: [" << line << "]\n";
+                continue;
+            }
+
+            try {
+                float x = std::stof(tokens[1]);
+                float y = std::stof(tokens[3]);
+                float z = std::stof(tokens[2]);
+
+                Particle p(glm::vec3(x, y, z), mass);
+                particles.push_back(p);
+            }
+            catch (const std::exception& e) {
+                std::cerr << "Invalid float data in line: [" << line << "]\n";
+            }
+        }
+        file.close();
+        particle_reset = particles;
+        create_particle_vertex_map();
+        return;
+    }
+
+
+
+
+
     void create_particle_vertex_map() {
-        const float epsilon = 0.001f;
+        const float epsilon = 0.1f; //0.001
         for (int i = 0; i < particles.size(); i++) {
             for (int j = 0; j < vertices.size(); j++) {
                 if (glm::length(particles[i].pos - vertices[j].Position) <= epsilon) {
@@ -191,10 +232,66 @@ public:
             tet.particle_ids.z = std::stoi(vec[2]);
             tet.particle_ids.w = std::stoi(vec[3]);
             tet.rest_volume = getTetVolume(tet.particle_ids);
+
+            particles[tet.particle_ids.x].inv_mass = 1 / (tet.rest_volume / 4);
+            particles[tet.particle_ids.y].inv_mass = 1 / (tet.rest_volume / 4);
+            particles[tet.particle_ids.z].inv_mass = 1 / (tet.rest_volume / 4);
+            particles[tet.particle_ids.w].inv_mass = 1 / (tet.rest_volume / 4);
+
             this->tetrahedrons.push_back(tet);
         }
         f.close();
     }
+
+
+    void addTetraIDsTetGen(const std::string& path) {
+        std::ifstream file(path);
+        std::string line;
+        std::regex whitespace("\\s+");
+
+        while (std::getline(file, line)) {
+            // Trim leading/trailing spaces
+            line = std::regex_replace(line, std::regex("^\\s+|\\s+$"), "");
+
+            // Skip empty lines or comments
+            if (line.empty() || line[0] == '#') continue;
+
+            std::sregex_token_iterator iter(line.begin(), line.end(), whitespace, -1);
+            std::sregex_token_iterator end;
+            std::vector<std::string> tokens(iter, end);
+
+            if (tokens.size() < 5) {
+                continue;
+            }
+
+            try {
+                Tetrahedron tet;
+                // Adjusting for 1-based indices
+                tet.particle_ids.x = std::stoi(tokens[1]) - 1;
+                tet.particle_ids.y = std::stoi(tokens[2]) - 1;
+                tet.particle_ids.z = std::stoi(tokens[3]) - 1;
+                tet.particle_ids.w = std::stoi(tokens[4]) - 1;
+
+                tet.rest_volume = getTetVolume(tet.particle_ids);
+
+                particles[tet.particle_ids.x].inv_mass = 1 / (tet.rest_volume / 4);
+                particles[tet.particle_ids.y].inv_mass = 1 / (tet.rest_volume / 4);
+                particles[tet.particle_ids.z].inv_mass = 1 / (tet.rest_volume / 4);
+                particles[tet.particle_ids.w].inv_mass = 1 / (tet.rest_volume / 4);
+
+                tetrahedrons.push_back(tet);
+            }
+            catch (const std::exception& e) {
+                std::cerr << "Exception parsing line: [" << line << "]\n"
+                    << "Error: " << e.what() << "\n";
+            }
+        }
+
+        file.close();
+    }
+
+
+
 
     float getTetVolume(const glm::vec4& t) {
         Particle& point0 = particles[t.x];
@@ -207,12 +304,9 @@ public:
         glm::vec3 tempVec3 = point3.pos - point0.pos;
 
         float tetVolume =
-            glm::abs(glm::dot(glm::cross(tempVec1, tempVec2), tempVec3)) / 6.0f;
+            (glm::dot(glm::cross(tempVec1, tempVec2), tempVec3)) / 6.0f;
 
-        point0.inv_mass = 1 / (tetVolume / 4);
-        point1.inv_mass = 1 / (tetVolume / 4);
-        point2.inv_mass = 1 / (tetVolume / 4);
-        point3.inv_mass = 1 / (tetVolume / 4);
+      
 
         return tetVolume;
     }

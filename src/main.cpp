@@ -29,10 +29,13 @@ float lastY = SCR_HEIGHT / 2.0f; // Last mouse Y position
 Model* testModel;
 
 float mass = 0.01f; // higher = more jiggly, 0.01 is good
+
+//compliance is 0 to 10
+//edge *50
 float edge_compliance = 0.01f; // higher = more jiggly, 0.01 is good
 float volume_compliance = 0.1f;
 
-int substeps = 10; //more = faster?? 1 to 10 is good
+int substeps = 10; //more = faster?? 1 to 10 is good. 10 is used
 bool reset = false;
 
 //bool dragging = false;
@@ -90,18 +93,29 @@ int main() {
     // Load model
     stbi_set_flip_vertically_on_load(true);
     //Model testModel(FileSystem::getPath("assets/pudding/tetrapudding.obj"));
-    //Model testModel("C:/Users/zq/Desktop/school/CSD6/graphics/jiggle/tetracube.obj");
+
+    //testModel = new Model("C:/Users/zq/Desktop/school/CSD6/graphics/jiggle/newcube.obj");
+
     //Model testModel("C:/Users/zq/Desktop/school/CSD6/graphics/jiggle/tetrapuddingface.obj");
-    testModel = new Model("C:/Users/zq/Desktop/school/CSD6/graphics/jiggle/tetrapuddingface.obj");
+    
+    testModel = new Model("C:/Users/zq/Desktop/school/CSD6/graphics/jiggle/pudding.obj");
+
+    //testModel = new Model("C:/Users/zq/Desktop/school/CSD6/graphics/jiggle/tetrapuddingface.obj");
 
 
 
 
-    //testModel.meshes[0].initSoftBody(FileSystem::getPath("assets/pudding/cube10.nodes"),
+    //testModel->meshes[0].initSoftBody(FileSystem::getPath("assets/pudding/cube10.nodes"),
     //    FileSystem::getPath("assets/pudding/cube10.ele"), mass, edge_compliance, volume_compliance);
 
-    testModel->meshes[0].initSoftBody(FileSystem::getPath("assets/pudding/pudding.nodes"),
-        FileSystem::getPath("assets/pudding/pudding.ele"), mass, edge_compliance, volume_compliance);
+    //testModel->meshes[0].initSoftBody(FileSystem::getPath("assets/pudding/tetrapudding.nodes"),
+    //    FileSystem::getPath("assets/pudding/tetrapudding.ele"), mass, edge_compliance, volume_compliance);
+
+    testModel->meshes[0].initSoftBody(FileSystem::getPath("assets/pudding/puddinggennode.1.node"),
+        FileSystem::getPath("assets/pudding/puddinggenele.1.ele"), mass, edge_compliance, volume_compliance);
+
+    //testModel->meshes[0].initSoftBody("C:/Users/zq/Downloads/tetgen1.6.0/tetgen1.6.0/build/Debug/puddings/pudding.1.node",
+    //    "C:/Users/zq/Downloads/tetgen1.6.0/tetgen1.6.0/build/Debug/puddings/pudding.1.ele", mass, edge_compliance, volume_compliance);
 
     // Set up point lights
     glm::vec3 pointLightPositions[] = {
@@ -124,6 +138,7 @@ int main() {
    /*     if (deltaTime < 1e-5f) {
             deltaTime = 1e-5f;
         }*/
+        //deltaTime = 1.0f / 60.0f;
         lastFrame = currentFrame;
 
         //int numSubsteps = 5;
@@ -169,6 +184,7 @@ int main() {
         glm::vec3 gravity = { 0, -10, 0 };
        
         testModel->meshes[0].update(deltaTime, substeps, gravity);
+
         //testModel->meshes[0].updateCompliance(edge_compliance, volume_compliance);
         if (reset) {
             testModel->meshes[0].reset();
@@ -312,7 +328,7 @@ void processInput(GLFWwindow* window) {
     if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
         //reset();
         reset = true;
-        testModel->meshes[0].edge_compliance = 0.01;
+        //testModel->meshes[0].edge_compliance = 0.01;
 
     }
 
