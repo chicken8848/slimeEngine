@@ -163,6 +163,9 @@ public:
         std::string line;
         std::regex whitespace("\\s+");
 
+        // Skip the first line: that has number of vertices etc
+        std::getline(file, line);
+
         while (std::getline(file, line)) {
             // Remove leading/trailing spaces
             line = std::regex_replace(line, std::regex("^\\s+|\\s+$"), "");
@@ -348,7 +351,7 @@ public:
             if (particles[i].pos.y <= -5) {
                 particles[i].pos = particles[i].prev_pos;
                 particles[i].pos.y = -5;
-                particles[i].inv_mass = 0.0f;
+                //particles[i].inv_mass = 0.0f;
 
             }
         }

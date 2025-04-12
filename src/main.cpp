@@ -98,11 +98,14 @@ int main() {
 
     //Model testModel("C:/Users/zq/Desktop/school/CSD6/graphics/jiggle/tetrapuddingface.obj");
     
-    testModel = new Model("C:/Users/zq/Desktop/school/CSD6/graphics/jiggle/pudding.obj");
+    //testModel = new Model("C:/Users/zq/Desktop/school/CSD6/graphics/jiggle/pudding.obj");
 
     //testModel = new Model("C:/Users/zq/Desktop/school/CSD6/graphics/jiggle/tetrapuddingface.obj");
 
+    testModel = new Model(FileSystem::getPath("assets/sphere/sphere.obj"));
 
+    testModel->meshes[0].initSoftBody(FileSystem::getPath("assets/sphere/sphere.1.node"),
+        FileSystem::getPath("assets/sphere/sphere.1.ele"), mass, edge_compliance, volume_compliance);
 
 
     //testModel->meshes[0].initSoftBody(FileSystem::getPath("assets/pudding/cube10.nodes"),
@@ -111,8 +114,8 @@ int main() {
     //testModel->meshes[0].initSoftBody(FileSystem::getPath("assets/pudding/tetrapudding.nodes"),
     //    FileSystem::getPath("assets/pudding/tetrapudding.ele"), mass, edge_compliance, volume_compliance);
 
-    testModel->meshes[0].initSoftBody(FileSystem::getPath("assets/pudding/puddinggennode.1.node"),
-        FileSystem::getPath("assets/pudding/puddinggenele.1.ele"), mass, edge_compliance, volume_compliance);
+    //testModel->meshes[0].initSoftBody(FileSystem::getPath("assets/pudding/puddinggennode.1.node"),
+    //    FileSystem::getPath("assets/pudding/puddinggenele.1.ele"), mass, edge_compliance, volume_compliance);
 
     //testModel->meshes[0].initSoftBody("C:/Users/zq/Downloads/tetgen1.6.0/tetgen1.6.0/build/Debug/puddings/pudding.1.node",
     //    "C:/Users/zq/Downloads/tetgen1.6.0/tetgen1.6.0/build/Debug/puddings/pudding.1.ele", mass, edge_compliance, volume_compliance);
