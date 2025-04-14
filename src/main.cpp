@@ -109,17 +109,8 @@ int main() {
 
     std::vector<std::string> availableObjects = { "pudding", "sphere" };
 
-    int object_index = 0;
+    int object_index = 0; //change this to change object used
     loadObject(availableObjects[object_index]);
-
-    //testModel = new Model(FileSystem::getPath("assets/sphere/sphere.obj"));
- /*   testModel = new Model(FileSystem::getPath("assets/pudding/pudding.obj"));
-
-    testModel->meshes[0].initSoftBody(FileSystem::getPath("assets/pudding/pudding.1.node"),
-        FileSystem::getPath("assets/pudding/pudding.1.ele"), mass, edge_compliance, volume_compliance);*/
-
-    //testModel->meshes[0].initSoftBody(FileSystem::getPath("assets/sphere/sphere.1.node"),
-    //    FileSystem::getPath("assets/sphere/sphere.1.ele"), mass, edge_compliance, volume_compliance);
 
     //floorModel = new Model(FileSystem::getPath("assets/floor/floor.obj"));
 
