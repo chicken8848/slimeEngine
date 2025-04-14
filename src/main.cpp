@@ -27,6 +27,7 @@ float lastX = SCR_WIDTH / 2.0f; // Last mouse X position
 float lastY = SCR_HEIGHT / 2.0f; // Last mouse Y position
 
 Model* testModel;
+//Model* floorModel;
 
 float mass = 0.01f; // higher = more jiggly, 0.01 is good
 
@@ -35,7 +36,7 @@ float mass = 0.01f; // higher = more jiggly, 0.01 is good
 float edge_compliance = 0.01f; // higher = more jiggly, 0.01 is good
 float volume_compliance = 0.1f;
 
-int substeps = 10; //more = faster?? 1 to 10 is good. 10 is used
+int substeps = 30; //more = smoother, 10 to 30 is good
 bool reset = false;
 
 //bool dragging = false;
@@ -48,6 +49,19 @@ void scroll_callback(GLFWwindow* window, double xpos, double ypos);
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 void processInput(GLFWwindow* window);
 
+void loadObject(const std::string& name) {
+    std::string basePath = "assets/" + name + "/" + name;
+
+    testModel = new Model(FileSystem::getPath(basePath + ".obj"));
+
+    testModel->meshes[0].initSoftBody(
+        FileSystem::getPath(basePath + ".1.node"),
+        FileSystem::getPath(basePath + ".1.ele"),
+        mass,
+        edge_compliance,
+        volume_compliance
+    );
+}
 
 int main() {
     // Initialize GLFW
@@ -92,33 +106,22 @@ int main() {
 
     // Load model
     stbi_set_flip_vertically_on_load(true);
-    //Model testModel(FileSystem::getPath("assets/pudding/tetrapudding.obj"));
 
-    //testModel = new Model("C:/Users/zq/Desktop/school/CSD6/graphics/jiggle/newcube.obj");
+    std::vector<std::string> availableObjects = { "pudding", "sphere" };
 
-    //Model testModel("C:/Users/zq/Desktop/school/CSD6/graphics/jiggle/tetrapuddingface.obj");
-    
-    //testModel = new Model("C:/Users/zq/Desktop/school/CSD6/graphics/jiggle/pudding.obj");
+    int object_index = 0;
+    loadObject(availableObjects[object_index]);
 
-    //testModel = new Model("C:/Users/zq/Desktop/school/CSD6/graphics/jiggle/tetrapuddingface.obj");
+    //testModel = new Model(FileSystem::getPath("assets/sphere/sphere.obj"));
+ /*   testModel = new Model(FileSystem::getPath("assets/pudding/pudding.obj"));
 
-    testModel = new Model(FileSystem::getPath("assets/sphere/sphere.obj"));
+    testModel->meshes[0].initSoftBody(FileSystem::getPath("assets/pudding/pudding.1.node"),
+        FileSystem::getPath("assets/pudding/pudding.1.ele"), mass, edge_compliance, volume_compliance);*/
 
-    testModel->meshes[0].initSoftBody(FileSystem::getPath("assets/sphere/sphere.1.node"),
-        FileSystem::getPath("assets/sphere/sphere.1.ele"), mass, edge_compliance, volume_compliance);
+    //testModel->meshes[0].initSoftBody(FileSystem::getPath("assets/sphere/sphere.1.node"),
+    //    FileSystem::getPath("assets/sphere/sphere.1.ele"), mass, edge_compliance, volume_compliance);
 
-
-    //testModel->meshes[0].initSoftBody(FileSystem::getPath("assets/pudding/cube10.nodes"),
-    //    FileSystem::getPath("assets/pudding/cube10.ele"), mass, edge_compliance, volume_compliance);
-
-    //testModel->meshes[0].initSoftBody(FileSystem::getPath("assets/pudding/tetrapudding.nodes"),
-    //    FileSystem::getPath("assets/pudding/tetrapudding.ele"), mass, edge_compliance, volume_compliance);
-
-    //testModel->meshes[0].initSoftBody(FileSystem::getPath("assets/pudding/puddinggennode.1.node"),
-    //    FileSystem::getPath("assets/pudding/puddinggenele.1.ele"), mass, edge_compliance, volume_compliance);
-
-    //testModel->meshes[0].initSoftBody("C:/Users/zq/Downloads/tetgen1.6.0/tetgen1.6.0/build/Debug/puddings/pudding.1.node",
-    //    "C:/Users/zq/Downloads/tetgen1.6.0/tetgen1.6.0/build/Debug/puddings/pudding.1.ele", mass, edge_compliance, volume_compliance);
+    //floorModel = new Model(FileSystem::getPath("assets/floor/floor.obj"));
 
     // Set up point lights
     glm::vec3 pointLightPositions[] = {
@@ -143,8 +146,6 @@ int main() {
         }*/
         //deltaTime = 1.0f / 60.0f;
         lastFrame = currentFrame;
-
-        //int numSubsteps = 5;
 
         // Process input
         processInput(window);
@@ -194,6 +195,11 @@ int main() {
             reset = false;
         }
         testModel->Draw(ourShader);
+
+   /*     glm::mat4 floorModelMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -6.0f, 0.0f));
+        ourShader.setMat4("model", floorModelMatrix);
+        floorModel->Draw(ourShader);*/
+ 
         
 
         // Swap buffers and poll events
@@ -337,7 +343,7 @@ void processInput(GLFWwindow* window) {
 
     if (glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS) {
         for (int i = 0; i < testModel->meshes[0].particles.size(); ++i) {
-            testModel->meshes[0].particles[i].pos += glm::vec3(0, 0.001f, 0);
+            testModel->meshes[0].particles[i].pos += glm::vec3(0, 0.01f, 0);
         }
     }
 }
