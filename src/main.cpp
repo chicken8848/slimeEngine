@@ -57,6 +57,8 @@ bool reset = false;
 Particle *grabbed_particle = nullptr;
 Hit *h = new Hit();
 
+bool cursor = false;
+
 // Create callback function for resizing window
 void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
   glViewport(0, 0, width, height);
@@ -75,7 +77,9 @@ void mouse_callback(GLFWwindow *window, double xposIn, double yposIn) {
   float yoffset = lastY - ypos;
   lastX = xpos;
   lastY = ypos;
-  ourCam.ProcessMouseMovement(xoffset, yoffset, true);
+  if (!cursor) {
+    ourCam.ProcessMouseMovement(xoffset, yoffset, true);
+  }
   mouse_offset.x = xoffset;
   mouse_offset.y = yoffset;
 }
@@ -130,6 +134,14 @@ void processInput(GLFWwindow *window) {
   if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
     reset = true;
   }
+  if (glfwGetKey(window, GLFW_KEY_K) == GLFW_PRESS) {
+    cursor = !cursor;
+    if (cursor) {
+      glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    } else {
+      glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    }
+  }
 }
 
 Model loadObject(const std::string &name) {
@@ -143,10 +155,31 @@ Model loadObject(const std::string &name) {
   return testModel;
 }
 
+glm::vec3 getRayDirection(float mouseX, float mouseY, int width, int height,
+                          glm::mat4 view, glm::mat4 projection) {
+  float x = (2.0f * mouseX) / width - 1.0f;
+  float y = 1.0f - (2.0f * mouseY) / height; // flip Y
+  glm::vec4 ray_clip(x, y, -1.0f, 1.0f);
+
+  glm::vec4 ray_eye = glm::inverse(projection) * ray_clip;
+  ray_eye = glm::vec4(ray_eye.x, ray_eye.y, -1.0f, 0.0f);
+
+  glm::vec4 ray_wor = glm::inverse(view) * ray_eye;
+  return glm::normalize(glm::vec3(ray_wor));
+}
+
 Mesh *intersection(Camera &c, Model &m, Hit &h) {
   Mesh *hitMesh = nullptr;
   bool intersect = false;
   Ray r(c.Position, c.Front);
+  if (cursor) {
+    glm::mat4 projection = glm::mat4(1.0f);
+    projection =
+        glm::perspective(glm::radians(ourCam.Zoom),
+                         (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+    r = Ray(c.Position, getRayDirection(lastX, lastY, SCR_WIDTH, SCR_HEIGHT,
+                                        c.GetViewMatrix(), projection));
+  }
   for (Mesh &mesh : m.meshes) {
     // buffer var to check when to update mesh
     float t0 = h.getT();
@@ -370,7 +403,14 @@ int main() {
         }
       } else {
         grabbed_particle->inv_mass = 0.0f;
-        grabbed_particle->pos = ourCam.Position + h->getT() * ourCam.Front;
+        if (cursor) {
+          grabbed_particle->pos =
+              ourCam.Position +
+              h->getT() * getRayDirection(lastX, lastY, SCR_WIDTH, SCR_HEIGHT,
+                                          ourCam.GetViewMatrix(), projection);
+        } else {
+          grabbed_particle->pos = ourCam.Position + h->getT() * ourCam.Front;
+        }
       }
     } else {
       if (grabbed_particle != nullptr) {

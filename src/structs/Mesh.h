@@ -285,6 +285,15 @@ public:
         particles[tet.particle_ids.z].inv_mass = 1 / (tet.rest_volume / 4);
         particles[tet.particle_ids.w].inv_mass = 1 / (tet.rest_volume / 4);
 
+        particles[tet.particle_ids.x].mass =
+            particles[tet.particle_ids.x].inv_mass;
+        particles[tet.particle_ids.y].mass =
+            particles[tet.particle_ids.y].inv_mass;
+        particles[tet.particle_ids.z].mass =
+            particles[tet.particle_ids.z].inv_mass;
+        particles[tet.particle_ids.w].mass =
+            particles[tet.particle_ids.w].inv_mass;
+
         tetrahedrons.push_back(tet);
       } catch (const std::exception &e) {
         std::cerr << "Exception parsing line: [" << line << "]\n"
@@ -516,9 +525,9 @@ public:
   bool intersect(const Ray &r, Hit &h, float tmin) {
     bool result = false;
     for (unsigned int i = 0; i < indices.size() / 3; i++) {
-      glm::vec3 a = vertices[i].Position;
-      glm::vec3 b = vertices[i + 1].Position;
-      glm::vec3 c = vertices[i + 2].Position;
+      glm::vec3 a = vertices[3 * i].Position;
+      glm::vec3 b = vertices[3 * i + 1].Position;
+      glm::vec3 c = vertices[3 * i + 2].Position;
       result |= triangle_intersect(r, h, tmin, a, b, c);
     }
     return result;
