@@ -1,3 +1,7 @@
+#include <imgui/headers/imgui.h>
+#include <imgui/headers/imgui_impl_glfw.h>
+#include <imgui/headers/imgui_impl_opengl3.h>
+
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
@@ -21,7 +25,10 @@ float deltaTime = 0.0f; // Time between frames
 float lastFrame = 0.0f; // Time of the last frame
 
 // Camera
-Camera ourCam = Camera(glm::vec3(0.0f, -3.0f, 5.0f)); // Camera object
+float yaw = -90.0f;
+float pitch = -20.0f;
+//Camera ourCam = Camera(glm::vec3(0.0f, -4.0f, 5.0f)); // Camera object
+Camera ourCam = Camera(glm::vec3(0.0f, -2.0f, 5.0f), glm::vec3(0.0f, 1.0f, 0.0f), yaw, pitch);
 bool first_mouse = true; // For mouse movement
 float lastX = SCR_WIDTH / 2.0f; // Last mouse X position
 float lastY = SCR_HEIGHT / 2.0f; // Last mouse Y position
@@ -33,11 +40,12 @@ float mass = 0.01f; // higher = more jiggly, 0.01 is good
 
 //compliance is 0 to 10
 //edge *50
+
+//add this 4 things to imgui
 float edge_compliance = 0.01f; // higher = more jiggly, 0.01 is good
 float volume_compliance = 0.1f;
-
 int substeps = 30; //more = smoother, 10 to 30 is good
-bool reset = false;
+bool reset = true;
 
 //bool dragging = false;
 //int selectedVertexIndex = -1;
@@ -88,7 +96,8 @@ int main() {
     // Set up OpenGL viewport and callbacks
     glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-    glfwSetCursorPosCallback(window, mouse_callback);
+    //comment this to stop camera movement: can toggle with ctrl?
+    //glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetScrollCallback(window, scroll_callback);
     glfwSetMouseButtonCallback(window, mouse_button_callback);
 
@@ -130,6 +139,14 @@ int main() {
     model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
     model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));
 
+    // Initialize ImGUI
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGui::StyleColorsDark();
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init("#version 330");
+
     // Render loop
     while (!glfwWindowShouldClose(window)) {
         // Calculate delta time
@@ -147,6 +164,36 @@ int main() {
         // Clear the screen
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        // Tell OpenGL a new frame is about to begin
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
+        // ImGUI window creation
+        ImGui::Begin("Soft Body Parameters", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+        // Sliders for parameters
+        ImGui::SliderFloat("Edge compliance", &testModel->meshes[0].edge_compliance, 0.01f, 0.2f);
+        ImGui::SliderFloat("Volume compliance", &testModel->meshes[0].volume_compliance, 0.01f, 0.2f);
+        ImGui::SliderInt("Substeps", &substeps, 1, 50);
+
+        if (ImGui::Button("Reset")) {
+            reset = true;
+        }
+        if (ImGui::Button("Lift")) {
+            // Optional: do something on click
+        }
+
+        // Detect if "Lift" button is being held down
+        if (ImGui::IsItemActive()) {
+            for (int i = 0; i < testModel->meshes[0].particles.size(); ++i) {
+                testModel->meshes[0].particles[i].pos += glm::vec3(0, 0.01f, 0);
+            }
+        }
+ 
+        // Ends the window
+        ImGui::End();
 
         // Use shader program
         ourShader.use();
@@ -190,16 +237,23 @@ int main() {
         }
         testModel->Draw(ourShader);
 
-        glm::mat4 floorModelMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -6.0f, 0.0f));
+        glm::mat4 floorModelMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -5.0f, 0.0f));
         ourShader.setMat4("model", floorModelMatrix);
         floorModel->Draw(ourShader);
  
-        
+        // Renders the ImGUI elements
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         // Swap buffers and poll events
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
+
+    // Deletes all ImGUI instances
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
 
     // Clean up and exit
     glfwTerminate();
@@ -248,7 +302,7 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 
             //glm::vec3 vertexPosition = testModel->meshes[0].vertices[0].Position;
             testModel->meshes[0].particles[0].pos += glm::vec3(0, 0.1, 0); // I guess that works
-            cout << testModel->meshes[0].particles[0].pos.y << endl;
+            //cout << testModel->meshes[0].particles[0].pos.y << endl;
 
             //for (int i = 0; i < testModel->meshes[0].particles.size(); ++i) {
             //    glm::vec2 v2D = glm::vec2(testModel->meshes[0].particles[i].pos.x,
@@ -323,10 +377,10 @@ void processInput(GLFWwindow* window) {
     }
 
     if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS) {
-        testModel->meshes[0].particles.back().pos += glm::vec3(-0.01f, 0, 0);
+        testModel->meshes[0].particles.back().pos += glm::vec3(-0.1f, 0, 0);
     }
     if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS) {
-        testModel->meshes[0].particles.back().pos += glm::vec3(0.01f, 0, 0);
+        testModel->meshes[0].particles.back().pos += glm::vec3(0.1f, 0, 0);
     }
     if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
         //reset();

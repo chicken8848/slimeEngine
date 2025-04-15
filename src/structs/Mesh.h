@@ -531,10 +531,11 @@ private:
                 //}
             }
         }
-        glBindVertexArray(VAO);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.size() * sizeof(Vertex),
+        //glBindVertexArray(VAO);
+       /* glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.size() * sizeof(Vertex),
             &vertices[0]);
-        glBindVertexArray(0);
+        glBindVertexArray(0);*/
+        setupMesh();
     }
 };
 
