@@ -15,6 +15,11 @@
 #include "structs/Shader.h"
 #include "structs/stb_image.h"
 
+#include "structs/debugging.h"
+
+#include "structs/Hit.h"
+#include "structs/Ray.h"
+
 #include "structs/Model.h"
 
 #include <learnopengl/filesystem.h>
@@ -27,6 +32,7 @@ const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
 glm::vec3 gravity = {0, -10, 0};
+const int substeps = 3;
 
 float mixValue = 0.2;
 
@@ -41,8 +47,15 @@ bool first_mouse = true;
 float lastX = SCR_WIDTH / 2.0f;
 float lastY = SCR_HEIGHT / 2.0f;
 
+float edge_compliance = 0.01f; // higher = more jiggly, 0.01 is good
+float volume_compliance = 0.0f;
+float mass = 0.1f;
+
 glm::vec3 mouse_offset = {0, 0, 0};
-bool grab;
+bool grab = false;
+bool reset = false;
+Particle *grabbed_particle = nullptr;
+Hit *h = new Hit();
 
 // Create callback function for resizing window
 void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
@@ -114,7 +127,64 @@ void processInput(GLFWwindow *window) {
   if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
     grab = false;
   }
+  if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
+    reset = true;
+  }
 }
+
+Model loadObject(const std::string &name) {
+  std::string basePath = "assets/" + name + "/" + name;
+
+  Model testModel(FileSystem::getPath(basePath + ".obj"));
+
+  testModel.meshes[0].initSoftBody(FileSystem::getPath(basePath + ".1.node"),
+                                   FileSystem::getPath(basePath + ".1.ele"),
+                                   mass, edge_compliance, volume_compliance);
+  return testModel;
+}
+
+Mesh *intersection(Camera &c, Model &m, Hit &h) {
+  Mesh *hitMesh = nullptr;
+  bool intersect = false;
+  Ray r(c.Position, c.Front);
+  for (Mesh &mesh : m.meshes) {
+    // buffer var to check when to update mesh
+    float t0 = h.getT();
+    mesh.intersect(r, h, 0.0f);
+    float t1 = h.getT();
+    // update hitMesh if t is updated
+    if (t1 < t0) {
+      hitMesh = &mesh;
+      intersect = true;
+    }
+  }
+  return hitMesh;
+}
+
+Particle *findPointRT(Camera &c, Hit &h, Mesh &hitMesh) {
+  float t = h.getT();
+  glm::vec3 intersection_point = c.Position + t * c.Front;
+  Particle *nearest_particle = &hitMesh.particles[0];
+  float min_distance = glm::length(intersection_point - nearest_particle->pos);
+
+  for (Particle &p : hitMesh.particles) {
+    float new_distance = glm::length(intersection_point - p.pos);
+    if (new_distance < min_distance) {
+      nearest_particle = &p;
+      min_distance = new_distance;
+    }
+  }
+  return nearest_particle;
+}
+
+void reset_grabbed() {
+  grabbed_particle->prev_pos = grabbed_particle->pos;
+  grabbed_particle->inv_mass = grabbed_particle->mass;
+  grabbed_particle->velocity = glm::vec3(0.0f);
+  grabbed_particle = nullptr;
+  grab = false;
+}
+
 int main() {
   glfwInit();
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -226,17 +296,13 @@ int main() {
 
   ourCam.Position = {0, 1, 5.0f};
 
+  std::vector<std::string> availableObjects = {"pudding", "sphere"};
+
+  int object_index = 0; // change this to change object used
+  Model testModel = loadObject(availableObjects[object_index]);
+
   Model floor(
       FileSystem::getPath("assets/chessboarddfloor/chesssboardfloor.obj"));
-  // Model testModel(FileSystem::getPath("assets/newCube/newcube.obj"));
-  Model testModel(FileSystem::getPath("assets/pudding/pudding.obj"));
-
-  // testModel.meshes[0].initSoftBody(
-  //     FileSystem::getPath("assets/newCube/pudding.nodes"),
-  //     FileSystem::getPath("assets/newCube/pudding.ele"), 0.01f, 1.0f, 1.0f);
-  testModel.meshes[0].initSoftBody(
-      FileSystem::getPath("assets/pudding/pudding.nodes"),
-      FileSystem::getPath("assets/pudding/pudding.ele"), 0.01f, 0.1f, 0.01f);
 
   glEnable(GL_BLEND); // you enable blending function
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -264,18 +330,6 @@ int main() {
     ourShader.setFloat("pointLights[0].linear", 0.09f);
     ourShader.setFloat("pointLights[0].quadratic", 0.032f);
 
-    // ourShader.setVec3("spotLight.position", 0.0f, 5.0f, 0.0f);
-    // ourShader.setVec3("spotLight.direction", 0.0f, -1.0f, 0.0f);
-    // ourShader.setVec3("spotLight.ambient", 0.0f, 0.0f, 0.0f);
-    // ourShader.setVec3("spotLight.diffuse", 1.0f, 1.0f, 1.0f);
-    // ourShader.setVec3("spotLight.specular", 1.0f, 1.0f, 1.0f);
-    // ourShader.setFloat("spotLight.constant", 1.0f);
-    // ourShader.setFloat("spotLight.linear", 0.09f);
-    // ourShader.setFloat("spotLight.quadratic", 0.032f);
-    // ourShader.setFloat("spotLight.cutOff", glm::cos(glm::radians(12.5f)));
-    // ourShader.setFloat("spotLight.outerCutOff",
-    // glm::cos(glm::radians(15.0f)));
-
     glm::mat4 projection = glm::mat4(1.0f);
     projection =
         glm::perspective(glm::radians(ourCam.Zoom),
@@ -296,24 +350,36 @@ int main() {
         glm::vec3(1.0f, 1.0f,
                   1.0f)); // it's a bit too big for our scene, so scale it down
     ourShader.setMat4("model", model);
+
     testModel.Draw(ourShader);
     glm::mat4 floor_model = glm::translate(model, glm::vec3(0.0f, -2.0f, 0.0f));
     ourShader.setMat4("model", floor_model);
     floor.Draw(ourShader);
-    testModel.meshes[0].update(deltaTime, 2, gravity);
+    testModel.meshes[0].update(deltaTime, substeps, gravity);
 
-    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
+    if (reset) {
       testModel.meshes[0].reset();
+      grab = false;
+      reset = false;
     }
+
     if (grab) {
-      // testModel.meshes[0].particles[0].pos += 0.5f * mouse_offset;
-      // testModel.meshes[0].particles[0].inv_mass = 0.0f;
-      testModel.meshes[0].particles[0].pos =
-          ourCam.Position + 5.0f * ourCam.Front;
-      testModel.meshes[0].particles[0].prev_pos =
-          testModel.meshes[0].particles[0].pos;
+      if (grabbed_particle == nullptr) {
+        Mesh *hitMesh = intersection(ourCam, testModel, *h);
+        if (hitMesh != nullptr) {
+          grabbed_particle = findPointRT(ourCam, *h, *hitMesh);
+        }
+      } else {
+        grabbed_particle->inv_mass = 0.0f;
+        grabbed_particle->pos = ourCam.Position + h->getT() * ourCam.Front;
+      }
     } else {
+      if (grabbed_particle != nullptr) {
+        reset_grabbed();
+        h = new Hit();
+      }
     }
+
     glfwSwapBuffers(window);
     glfwPollEvents();
   }

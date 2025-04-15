@@ -7,6 +7,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+#include "Hit.h"
+#include "Ray.h"
 #include "Shader.h"
 
 #include <string>
@@ -16,6 +18,8 @@
 #include <fstream>
 #include <regex>
 using namespace std;
+
+bool stick_floor = false;
 
 #define MAX_BONE_INFLUENCE 4
 
@@ -120,8 +124,10 @@ public:
     this->is_soft = true;
     this->edge_compliance = edge_compliance;
     this->volume_compliance = volume_compliance;
-    this->addParticles(node_path, mass);
-    this->addTetraIDs(tetIDpath);
+    // this->addParticles(node_path, mass);
+    // this->addTetraIDs(tetIDpath);
+    this->addParticlesTetGen(node_path, mass);
+    this->addTetraIDsTetGen(tetIDpath);
     this->calcEdges();
   }
 
@@ -150,8 +156,49 @@ public:
     return;
   }
 
+  void addParticlesTetGen(const std::string &path, float mass) {
+    std::ifstream file(path);
+    std::string line;
+    std::regex whitespace("\\s+");
+
+    // Skip the first line: that has number of vertices etc
+    std::getline(file, line);
+
+    while (std::getline(file, line)) {
+      // Remove leading/trailing spaces
+      line = std::regex_replace(line, std::regex("^\\s+|\\s+$"), "");
+
+      if (line.empty() || line[0] == '#')
+        continue; // skip empty/comment lines
+
+      std::sregex_token_iterator iter(line.begin(), line.end(), whitespace, -1);
+      std::sregex_token_iterator end;
+      std::vector<std::string> tokens(iter, end);
+
+      if (tokens.size() < 4) {
+        std::cerr << "Skipping short/malformed line: [" << line << "]\n";
+        continue;
+      }
+
+      try {
+        float x = std::stof(tokens[1]);
+        float y = std::stof(tokens[3]);
+        float z = std::stof(tokens[2]);
+
+        Particle p(glm::vec3(x, y, z), mass);
+        this->particles.push_back(p);
+      } catch (const std::exception &e) {
+        std::cerr << "Invalid float data in line: [" << line << "]\n";
+      }
+    }
+    file.close();
+    this->particle_reset = this->particles;
+    create_particle_vertex_map();
+    return;
+  }
+
   void create_particle_vertex_map() {
-    const float epsilon = 0.001f;
+    const float epsilon = 0.1f;
     for (int i = 0; i < particles.size(); i++) {
       for (int j = 0; j < vertices.size(); j++) {
         if (glm::length(particles[i].pos - vertices[j].Position) <= epsilon) {
@@ -188,9 +235,64 @@ public:
       particles[tet.particle_ids.z].inv_mass = 1 / (tet.rest_volume / 4);
       particles[tet.particle_ids.w].inv_mass = 1 / (tet.rest_volume / 4);
 
+      particles[tet.particle_ids.x].mass =
+          particles[tet.particle_ids.x].inv_mass;
+      particles[tet.particle_ids.y].mass =
+          particles[tet.particle_ids.y].inv_mass;
+      particles[tet.particle_ids.z].mass =
+          particles[tet.particle_ids.z].inv_mass;
+      particles[tet.particle_ids.w].mass =
+          particles[tet.particle_ids.w].inv_mass;
+
       this->tetrahedrons.push_back(tet);
     }
     f.close();
+  }
+
+  void addTetraIDsTetGen(const std::string &path) {
+    std::ifstream file(path);
+    std::string line;
+    std::regex whitespace("\\s+");
+
+    while (std::getline(file, line)) {
+      // Trim leading/trailing spaces
+      line = std::regex_replace(line, std::regex("^\\s+|\\s+$"), "");
+
+      // Skip empty lines or comments
+      if (line.empty() || line[0] == '#')
+        continue;
+
+      std::sregex_token_iterator iter(line.begin(), line.end(), whitespace, -1);
+      std::sregex_token_iterator end;
+      std::vector<std::string> tokens(iter, end);
+
+      if (tokens.size() < 5) {
+        continue;
+      }
+
+      try {
+        Tetrahedron tet;
+        // Adjusting for 1-based indices
+        tet.particle_ids.x = std::stoi(tokens[1]) - 1;
+        tet.particle_ids.y = std::stoi(tokens[2]) - 1;
+        tet.particle_ids.z = std::stoi(tokens[3]) - 1;
+        tet.particle_ids.w = std::stoi(tokens[4]) - 1;
+
+        tet.rest_volume = getTetVolume(tet.particle_ids);
+
+        particles[tet.particle_ids.x].inv_mass = 1 / (tet.rest_volume / 4);
+        particles[tet.particle_ids.y].inv_mass = 1 / (tet.rest_volume / 4);
+        particles[tet.particle_ids.z].inv_mass = 1 / (tet.rest_volume / 4);
+        particles[tet.particle_ids.w].inv_mass = 1 / (tet.rest_volume / 4);
+
+        tetrahedrons.push_back(tet);
+      } catch (const std::exception &e) {
+        std::cerr << "Exception parsing line: [" << line << "]\n"
+                  << "Error: " << e.what() << "\n";
+      }
+    }
+
+    file.close();
   }
 
   float getTetVolume(const glm::vec4 &t) {
@@ -255,11 +357,9 @@ public:
         continue;
       v.velocity =
           (v.pos - v.prev_pos) * 0.999f * (static_cast<float>(1.0 / dt));
-      /*
       if (glm::length(v.velocity) <= 0.0002) {
         v.velocity = {0, 0, 0};
       }
-      */
     }
   }
 
@@ -374,6 +474,56 @@ public:
     glActiveTexture(GL_TEXTURE0);
   }
 
+  /// Ray-triangle intersection test
+  bool triangle_intersect(const Ray &ray, Hit &hit, float tmin, glm::vec3 a,
+                          glm::vec3 b, glm::vec3 c) {
+    vec3 origin = ray.getOrigin();
+    vec3 dir = ray.getDirection();
+
+    mat3 A = mat3(a[0] - b[0], a[0] - c[0], dir[0], a[1] - b[1], a[1] - c[1],
+                  dir[1], a[2] - b[2], a[2] - c[2], dir[2]);
+
+    mat3 betaMat =
+        mat3(a[0] - origin[0], a[0] - c[0], dir[0], a[1] - origin[1],
+             a[1] - c[1], dir[1], a[2] - origin[2], a[2] - c[2], dir[2]);
+
+    mat3 gammaMat =
+        mat3(a[0] - b[0], a[0] - origin[0], dir[0], a[1] - b[1],
+             a[1] - origin[1], dir[1], a[2] - b[2], a[2] - origin[2], dir[2]);
+
+    mat3 tMat = mat3(a[0] - b[0], a[0] - c[0], a[0] - origin[0], a[1] - b[1],
+                     a[1] - c[1], a[1] - origin[1], a[2] - b[2], a[2] - c[2],
+                     a[2] - origin[2]);
+
+    float gamma = determinant(gammaMat) / determinant(A);
+    float beta = determinant(betaMat) / determinant(A);
+    float alpha = 1.0f - beta - gamma;
+    float t = determinant(tMat) / determinant(A);
+
+    if (beta + gamma > 1 || beta < 0 || gamma < 0) {
+      return false;
+    }
+
+    if (t > tmin && t < hit.getT()) {
+      hit.set(t);
+
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  bool intersect(const Ray &r, Hit &h, float tmin) {
+    bool result = false;
+    for (unsigned int i = 0; i < indices.size() / 3; i++) {
+      glm::vec3 a = vertices[i].Position;
+      glm::vec3 b = vertices[i + 1].Position;
+      glm::vec3 c = vertices[i + 2].Position;
+      result |= triangle_intersect(r, h, tmin, a, b, c);
+    }
+    return result;
+  }
+
 private:
   unsigned int VBO, EBO;
 
@@ -420,10 +570,7 @@ private:
         vertices[j].Position = particles[i].pos;
       }
     }
-    glBindVertexArray(VAO);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.size() * sizeof(Vertex),
-                    &vertices[0]);
-    glBindVertexArray(0);
+    setupMesh();
   }
 };
 
