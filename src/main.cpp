@@ -27,7 +27,7 @@ float lastX = SCR_WIDTH / 2.0f; // Last mouse X position
 float lastY = SCR_HEIGHT / 2.0f; // Last mouse Y position
 
 Model* testModel;
-//Model* floorModel;
+Model* floorModel;
 
 float mass = 0.01f; // higher = more jiggly, 0.01 is good
 
@@ -107,12 +107,15 @@ int main() {
     // Load model
     stbi_set_flip_vertically_on_load(true);
 
-    std::vector<std::string> availableObjects = { "pudding", "sphere" };
+    Model* floorModel = new Model(FileSystem::getPath("assets/floor/floor.obj"));
+
+    std::vector<std::string> availableObjects = { "pudding", "sphere", "floor"};
 
     int object_index = 0; //change this to change object used
     loadObject(availableObjects[object_index]);
 
-    //floorModel = new Model(FileSystem::getPath("assets/floor/floor.obj"));
+
+    //loadObject("floor");
 
     // Set up point lights
     glm::vec3 pointLightPositions[] = {
@@ -187,9 +190,9 @@ int main() {
         }
         testModel->Draw(ourShader);
 
-   /*     glm::mat4 floorModelMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -6.0f, 0.0f));
+        glm::mat4 floorModelMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -6.0f, 0.0f));
         ourShader.setMat4("model", floorModelMatrix);
-        floorModel->Draw(ourShader);*/
+        floorModel->Draw(ourShader);
  
         
 
