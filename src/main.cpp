@@ -109,13 +109,13 @@ int main() {
 
     Model* floorModel = new Model(FileSystem::getPath("assets/floor/floor.obj"));
 
-    std::vector<std::string> availableObjects = { "pudding", "sphere", "floor"};
+    std::vector<std::string> availableObjects = { "pudding", "sphere"};
 
     int object_index = 0; //change this to change object used
     loadObject(availableObjects[object_index]);
 
+    //loadObject("sphere");
 
-    //loadObject("floor");
 
     // Set up point lights
     glm::vec3 pointLightPositions[] = {
