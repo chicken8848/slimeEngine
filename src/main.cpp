@@ -178,7 +178,6 @@ Particle *findPointRT(Camera &c, Hit &h, Mesh &hitMesh) {
 }
 
 void reset_grabbed() {
-  grabbed_particle->prev_pos = grabbed_particle->pos;
   grabbed_particle->inv_mass = grabbed_particle->mass;
   grabbed_particle->velocity = glm::vec3(0.0f);
   grabbed_particle = nullptr;
