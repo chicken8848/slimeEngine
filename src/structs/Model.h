@@ -13,6 +13,7 @@
 #include <stb_image.h>
 
 #include "Mesh.h"
+#include "Ray.h"
 #include "Shader.h"
 
 #include <fstream>

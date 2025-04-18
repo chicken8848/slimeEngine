@@ -3,9 +3,12 @@
 
 #include <glad/glad.h> // holds all OpenGL type declarations
 
+#include <glm/geometric.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+#include "Hit.h"
+#include "Ray.h"
 #include "Shader.h"
 
 #include <string>
@@ -122,13 +125,10 @@ public:
         this->is_soft = true;
         this->edge_compliance = edge_compliance;
         this->volume_compliance = volume_compliance;
-
-        //this->addParticles(node_path, mass);
-        //this->addTetraIDs(tetIDpath);
-
+        // this->addParticles(node_path, mass);
+        // this->addTetraIDs(tetIDpath);
         this->addParticlesTetGen(node_path, mass);
         this->addTetraIDsTetGen(tetIDpath);
-
         this->calcEdges();
     }
 
@@ -149,7 +149,6 @@ public:
             float arg2 = std::stof(vec[2]);
             float arg3 = std::stof(vec[1]);
             Particle p = Particle({ arg1, arg2, arg3 }, mass);
-
             this->particles.push_back(p);
         }
         f.close();
@@ -170,7 +169,8 @@ public:
             // Remove leading/trailing spaces
             line = std::regex_replace(line, std::regex("^\\s+|\\s+$"), "");
 
-            if (line.empty() || line[0] == '#') continue; // skip empty/comment lines
+            if (line.empty() || line[0] == '#')
+                continue; // skip empty/comment lines
 
             std::sregex_token_iterator iter(line.begin(), line.end(), whitespace, -1);
             std::sregex_token_iterator end;
@@ -187,24 +187,20 @@ public:
                 float z = std::stof(tokens[2]);
 
                 Particle p(glm::vec3(x, y, z), mass);
-                particles.push_back(p);
+                this->particles.push_back(p);
             }
             catch (const std::exception& e) {
                 std::cerr << "Invalid float data in line: [" << line << "]\n";
             }
         }
         file.close();
-        particle_reset = particles;
+        this->particle_reset = this->particles;
         create_particle_vertex_map();
         return;
     }
 
-
-
-
-
     void create_particle_vertex_map() {
-        const float epsilon = 0.1f; //0.001
+        const float epsilon = 0.1f;
         for (int i = 0; i < particles.size(); i++) {
             for (int j = 0; j < vertices.size(); j++) {
                 if (glm::length(particles[i].pos - vertices[j].Position) <= epsilon) {
@@ -241,11 +237,19 @@ public:
             particles[tet.particle_ids.z].inv_mass = 1 / (tet.rest_volume / 4);
             particles[tet.particle_ids.w].inv_mass = 1 / (tet.rest_volume / 4);
 
+            particles[tet.particle_ids.x].mass =
+                particles[tet.particle_ids.x].inv_mass;
+            particles[tet.particle_ids.y].mass =
+                particles[tet.particle_ids.y].inv_mass;
+            particles[tet.particle_ids.z].mass =
+                particles[tet.particle_ids.z].inv_mass;
+            particles[tet.particle_ids.w].mass =
+                particles[tet.particle_ids.w].inv_mass;
+
             this->tetrahedrons.push_back(tet);
         }
         f.close();
     }
-
 
     void addTetraIDsTetGen(const std::string& path) {
         std::ifstream file(path);
@@ -257,7 +261,8 @@ public:
             line = std::regex_replace(line, std::regex("^\\s+|\\s+$"), "");
 
             // Skip empty lines or comments
-            if (line.empty() || line[0] == '#') continue;
+            if (line.empty() || line[0] == '#')
+                continue;
 
             std::sregex_token_iterator iter(line.begin(), line.end(), whitespace, -1);
             std::sregex_token_iterator end;
@@ -282,6 +287,15 @@ public:
                 particles[tet.particle_ids.z].inv_mass = 1 / (tet.rest_volume / 4);
                 particles[tet.particle_ids.w].inv_mass = 1 / (tet.rest_volume / 4);
 
+                particles[tet.particle_ids.x].mass =
+                    particles[tet.particle_ids.x].inv_mass;
+                particles[tet.particle_ids.y].mass =
+                    particles[tet.particle_ids.y].inv_mass;
+                particles[tet.particle_ids.z].mass =
+                    particles[tet.particle_ids.z].inv_mass;
+                particles[tet.particle_ids.w].mass =
+                    particles[tet.particle_ids.w].inv_mass;
+
                 tetrahedrons.push_back(tet);
             }
             catch (const std::exception& e) {
@@ -293,9 +307,6 @@ public:
         file.close();
     }
 
-
-
-
     float getTetVolume(const glm::vec4& t) {
         Particle& point0 = particles[t.x];
         Particle& point1 = particles[t.y];
@@ -306,10 +317,7 @@ public:
         glm::vec3 tempVec2 = point2.pos - point0.pos;
         glm::vec3 tempVec3 = point3.pos - point0.pos;
 
-        float tetVolume =
-            (glm::dot(glm::cross(tempVec1, tempVec2), tempVec3)) / 6.0f;
-
-      
+        float tetVolume = glm::dot(glm::cross(tempVec1, tempVec2), tempVec3) / 6.0f;
 
         return tetVolume;
     }
@@ -348,11 +356,9 @@ public:
             particles[i].velocity = particles[i].velocity + (gravity * dt);
             particles[i].prev_pos = particles[i].pos;
             particles[i].pos = particles[i].pos + particles[i].velocity * dt;
-            if (particles[i].pos.y <= -5) {
+            if (particles[i].pos.y <= -4) {
                 particles[i].pos = particles[i].prev_pos;
-                particles[i].pos.y = -5;
-                //particles[i].inv_mass = 0.0f;
-
+                particles[i].pos.y = -4;
             }
         }
     }
@@ -362,7 +368,7 @@ public:
             if (1.0 / dt >= INFINITY)
                 continue;
             v.velocity =
-                (v.pos - v.prev_pos) * 0.9991f * (static_cast<float>(1.0 / dt));
+                (v.pos - v.prev_pos) * 0.999f * (static_cast<float>(1.0 / dt));
             if (glm::length(v.velocity) <= 0.0002) {
                 v.velocity = { 0, 0, 0 };
             }
@@ -483,6 +489,57 @@ public:
         glActiveTexture(GL_TEXTURE0);
     }
 
+    /// Ray-triangle intersection test
+    bool triangle_intersect(const Ray& ray, Hit& hit, float tmin, glm::vec3 a,
+        glm::vec3 b, glm::vec3 c) {
+        vec3 origin = ray.getOrigin();
+        vec3 dir = ray.getDirection();
+
+        mat3 A = mat3(a[0] - b[0], a[0] - c[0], dir[0], a[1] - b[1], a[1] - c[1],
+            dir[1], a[2] - b[2], a[2] - c[2], dir[2]);
+
+        mat3 betaMat =
+            mat3(a[0] - origin[0], a[0] - c[0], dir[0], a[1] - origin[1],
+                a[1] - c[1], dir[1], a[2] - origin[2], a[2] - c[2], dir[2]);
+
+        mat3 gammaMat =
+            mat3(a[0] - b[0], a[0] - origin[0], dir[0], a[1] - b[1],
+                a[1] - origin[1], dir[1], a[2] - b[2], a[2] - origin[2], dir[2]);
+
+        mat3 tMat = mat3(a[0] - b[0], a[0] - c[0], a[0] - origin[0], a[1] - b[1],
+            a[1] - c[1], a[1] - origin[1], a[2] - b[2], a[2] - c[2],
+            a[2] - origin[2]);
+
+        float gamma = determinant(gammaMat) / determinant(A);
+        float beta = determinant(betaMat) / determinant(A);
+        float alpha = 1.0f - beta - gamma;
+        float t = determinant(tMat) / determinant(A);
+
+        if (beta + gamma > 1 || beta < 0 || gamma < 0) {
+            return false;
+        }
+
+        if (t > tmin && t < hit.getT()) {
+            hit.set(t);
+
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
+    bool intersect(const Ray& r, Hit& h, float tmin) {
+        bool result = false;
+        for (unsigned int i = 0; i < vertices.size() / 3; i++) { //?? it was indices
+            glm::vec3 a = vertices[3 * i].Position;
+            glm::vec3 b = vertices[3 * i + 1].Position;
+            glm::vec3 c = vertices[3 * i + 2].Position;
+            result |= triangle_intersect(r, h, tmin, a, b, c);
+        }
+        return result;
+    }
+
 private:
     unsigned int VBO, EBO;
 
@@ -526,15 +583,9 @@ private:
     void update_vertices() {
         for (int i = 0; i < particles.size(); i++) {
             for (auto& j : particle_vertex_map[i]) {
-                //if (particles[i].pos.y > -4.8) {
-                    vertices[j].Position = particles[i].pos;
-                //}
+                vertices[j].Position = particles[i].pos;
             }
         }
-        //glBindVertexArray(VAO);
-       /* glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.size() * sizeof(Vertex),
-            &vertices[0]);
-        glBindVertexArray(0);*/
         setupMesh();
     }
 };

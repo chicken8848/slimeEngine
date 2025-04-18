@@ -3,18 +3,34 @@
 #include <imgui/headers/imgui_impl_opengl3.h>
 
 #include <glad/glad.h>
+
 #include <GLFW/glfw3.h>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
+#include <cmath>
+#include <glm/ext/matrix_clip_space.hpp>
+#include <glm/ext/matrix_transform.hpp>
+#include <glm/ext/quaternion_geometric.hpp>
+#include <glm/ext/vector_float3.hpp>
+#include <glm/geometric.hpp>
+#include <glm/trigonometric.hpp>
 #include <iostream>
-#include <vector>
+#include <stdio.h>
 
 #include "structs/Camera.h"
 #include "structs/Shader.h"
-#include "structs/Model.h"
 #include "structs/stb_image.h"
+
+//#include "structs/debugging.h"
+
+#include "structs/Hit.h"
+#include "structs/Ray.h"
+
+#include "structs/Model.h"
+
 #include <learnopengl/filesystem.h>
+
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 // Window dimensions
 const unsigned int SCR_WIDTH = 800;
@@ -25,10 +41,10 @@ float deltaTime = 0.0f; // Time between frames
 float lastFrame = 0.0f; // Time of the last frame
 
 // Camera
-float yaw = -90.0f;
-float pitch = -20.0f;
+//float yaw = -90.0f;
+//float pitch = -20.0f;
 //Camera ourCam = Camera(glm::vec3(0.0f, -4.0f, 5.0f)); // Camera object
-Camera ourCam = Camera(glm::vec3(0.0f, -2.0f, 5.0f), glm::vec3(0.0f, 1.0f, 0.0f), yaw, pitch);
+Camera ourCam = Camera(glm::vec3(0.0f, -2.0f, 5.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, -20.0f);
 bool first_mouse = true; // For mouse movement
 float lastX = SCR_WIDTH / 2.0f; // Last mouse X position
 float lastY = SCR_HEIGHT / 2.0f; // Last mouse Y position
@@ -47,6 +63,13 @@ float volume_compliance = 0.1f;
 int substeps = 30; //more = smoother, 10 to 30 is good
 bool reset = true;
 
+glm::vec3 mouse_offset = { 0, 0, 0 };
+bool grab = false;
+//bool reset = false;
+Particle* grabbed_particle = nullptr;
+Hit* h = new Hit();
+bool cursor = false;
+
 //bool dragging = false;
 //int selectedVertexIndex = -1;
 
@@ -54,7 +77,7 @@ bool reset = true;
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn);
 void scroll_callback(GLFWwindow* window, double xpos, double ypos);
-void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
+//void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 void processInput(GLFWwindow* window);
 
 void loadObject(const std::string& name) {
@@ -69,6 +92,52 @@ void loadObject(const std::string& name) {
         edge_compliance,
         volume_compliance
     );
+}
+
+Mesh* intersection(Camera& c, Model& m, Hit& h) {
+    Mesh* hitMesh = nullptr;
+    bool intersect = false;
+    Ray r(c.Position, c.Front);
+
+    if (m.meshes.empty()) {
+        std::cerr << "Model has no meshes!" << std::endl;
+        return nullptr;
+    }
+
+    for (Mesh& mesh : m.meshes) {
+        float t0 = h.getT();
+        mesh.intersect(r, h, 0.0f);
+        float t1 = h.getT();
+        if (t1 < t0) {
+            hitMesh = &mesh;
+            intersect = true;
+        }
+    }
+    return hitMesh;
+}
+
+
+Particle* findPointRT(Camera& c, Hit& h, Mesh& hitMesh) {
+    float t = h.getT();
+    glm::vec3 intersection_point = c.Position + t * c.Front;
+    Particle* nearest_particle = &hitMesh.particles[0];
+    float min_distance = glm::length(intersection_point - nearest_particle->pos);
+
+    for (Particle& p : hitMesh.particles) {
+        float new_distance = glm::length(intersection_point - p.pos);
+        if (new_distance < min_distance) {
+            nearest_particle = &p;
+            min_distance = new_distance;
+        }
+    }
+    return nearest_particle;
+}
+
+void reset_grabbed() {
+    grabbed_particle->inv_mass = grabbed_particle->mass;
+    grabbed_particle->velocity = glm::vec3(0.0f);
+    grabbed_particle = nullptr;
+    grab = false;
 }
 
 int main() {
@@ -97,12 +166,12 @@ int main() {
     glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     //comment this to stop camera movement: can toggle with ctrl?
-    //glfwSetCursorPosCallback(window, mouse_callback);
+    glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetScrollCallback(window, scroll_callback);
-    glfwSetMouseButtonCallback(window, mouse_button_callback);
+    //glfwSetMouseButtonCallback(window, mouse_button_callback);
 
-    //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 
     // Enable depth testing
     glEnable(GL_DEPTH_TEST);
@@ -231,13 +300,34 @@ int main() {
         testModel->meshes[0].update(deltaTime, substeps, gravity);
 
         //testModel->meshes[0].updateCompliance(edge_compliance, volume_compliance);
+       
         if (reset) {
             testModel->meshes[0].reset();
+            grab = false;
             reset = false;
+        }
+
+        if (grab) {
+            if (grabbed_particle == nullptr) {
+                Mesh* hitMesh = intersection(ourCam, *testModel, *h);
+                if (hitMesh != nullptr) {
+                    grabbed_particle = findPointRT(ourCam, *h, *hitMesh);
+                }
+            }
+            else {
+                grabbed_particle->inv_mass = 0.0f;
+                grabbed_particle->pos = ourCam.Position + h->getT() * ourCam.Front;
+            }
+        }
+        else {
+            if (grabbed_particle != nullptr) {
+                reset_grabbed();
+                h = new Hit();
+            }
         }
         testModel->Draw(ourShader);
 
-        glm::mat4 floorModelMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -5.0f, 0.0f));
+        glm::mat4 floorModelMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -4.0f, 0.0f));
         ourShader.setMat4("model", floorModelMatrix);
         floorModel->Draw(ourShader);
  
@@ -269,7 +359,6 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn) {
     float xpos = static_cast<float>(xposIn);
     float ypos = static_cast<float>(yposIn);
-
     if (first_mouse) {
         lastX = xpos;
         lastY = ypos;
@@ -280,46 +369,11 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn) {
     float yoffset = lastY - ypos;
     lastX = xpos;
     lastY = ypos;
-
-    ourCam.ProcessMouseMovement(xoffset, yoffset, true);
-}
-
-void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
-    if (button == GLFW_MOUSE_BUTTON_LEFT) {
-        if (action == GLFW_PRESS) {
-            double xpos, ypos;
-            glfwGetCursorPos(window, &xpos, &ypos);
-
-            float ndcX = (2.0f * xpos / SCR_WIDTH) - 1.0f;
-            float ndcY = 1.0f - (2.0f * ypos / SCR_HEIGHT);
-
-            glm::vec2 mousePos = glm::vec2(ndcX, ndcY);
-            //cout << "Mouse Position: " << mousePos.x << ", " << mousePos.y << endl;  // Debugging
-
-            float threshold = 0.05f;
-
-            //cout << "Mouse button pressed" << endl;
-
-            //glm::vec3 vertexPosition = testModel->meshes[0].vertices[0].Position;
-            testModel->meshes[0].particles[0].pos += glm::vec3(0, 0.1, 0); // I guess that works
-            //cout << testModel->meshes[0].particles[0].pos.y << endl;
-
-            //for (int i = 0; i < testModel->meshes[0].particles.size(); ++i) {
-            //    glm::vec2 v2D = glm::vec2(testModel->meshes[0].particles[i].pos.x,
-            //        testModel->meshes[0].particles[i].pos.y);
-            //    //cout << "Checking vertex " << i << ": " << v2D.x << ", " << v2D.y << endl;  // Debugging
-            //    if (glm::distance(v2D, mousePos) < threshold) {
-            //        dragging = true;
-            //        cout << "dragging";
-            //        selectedVertexIndex = i;
-            //        break;
-            //    }
-            //}
-        }
-        else if (action == GLFW_RELEASE) {
-            //dragging = false;
-        }
+    if (!cursor) {
+        ourCam.ProcessMouseMovement(xoffset, yoffset, true);
     }
+    mouse_offset.x = xoffset;
+    mouse_offset.y = yoffset;
 }
 
 
@@ -344,54 +398,26 @@ void processInput(GLFWwindow* window) {
         ourCam.ProcessKeyboard(RIGHT, deltaTime);
 
 
-    if (glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS) {
-        if (testModel->meshes[0].edge_compliance > 0.01) {
-            testModel->meshes[0].edge_compliance -= 0.0001;
-            cout << "Edge compliance: " << testModel->meshes[0].edge_compliance << endl;
-        }
-    }
-    if (glfwGetKey(window, GLFW_KEY_Y) == GLFW_PRESS) {
-        testModel->meshes[0].edge_compliance += 0.0001;
-        cout << "Edge compliance: " << testModel->meshes[0].edge_compliance << endl;
-    }
-
     if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS) {
-        if (volume_compliance >= 0.01) {
-            testModel->meshes[0].volume_compliance -= 0.001;
-            cout << "Volume compliance: " << testModel->meshes[0].volume_compliance << endl;
-        }
-    }
-    if (glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS) {
-        testModel->meshes[0].volume_compliance += 0.001;
-        cout << "Volume compliance: " << testModel->meshes[0].volume_compliance << endl;
-    }
-    if (glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS) {
-        if (substeps >= 1) {
-            substeps -= 1;
-            cout << "Substeps: " << substeps << endl;
-        }
-    }
-    if (glfwGetKey(window, GLFW_KEY_N) == GLFW_PRESS) {
-        substeps += 1;
-        cout << "Substeps: " << substeps << endl;
-    }
-
-    if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS) {
-        testModel->meshes[0].particles.back().pos += glm::vec3(-0.1f, 0, 0);
-    }
-    if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS) {
-        testModel->meshes[0].particles.back().pos += glm::vec3(0.1f, 0, 0);
+        grab = true;
     }
     if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
-        //reset();
-        reset = true;
-        //testModel->meshes[0].edge_compliance = 0.01;
-
+        grab = false;
     }
-
-    if (glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS) {
-        for (int i = 0; i < testModel->meshes[0].particles.size(); ++i) {
-            testModel->meshes[0].particles[i].pos += glm::vec3(0, 0.01f, 0);
-        }
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
+        reset = true;
+    }
+    if (glfwGetKey(window, GLFW_KEY_K) == GLFW_PRESS) {
+        cursor = true;
+    }
+    if (glfwGetKey(window, GLFW_KEY_L) == GLFW_PRESS) {
+        cursor = false;
+    }
+    if (cursor) {
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    }
+    else {
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     }
 }
+
