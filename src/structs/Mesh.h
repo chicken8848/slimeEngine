@@ -525,9 +525,9 @@ public:
   bool intersect(const Ray &r, Hit &h, float tmin) {
     bool result = false;
     for (unsigned int i = 0; i < indices.size() / 3; i++) {
-      glm::vec3 a = vertices[3 * i].Position;
-      glm::vec3 b = vertices[3 * i + 1].Position;
-      glm::vec3 c = vertices[3 * i + 2].Position;
+      glm::vec3 a = vertices[this->indices[3 * i]].Position;
+      glm::vec3 b = vertices[this->indices[3 * i + 1]].Position;
+      glm::vec3 c = vertices[this->indices[3 * i + 2]].Position;
       result |= triangle_intersect(r, h, tmin, a, b, c);
     }
     return result;
