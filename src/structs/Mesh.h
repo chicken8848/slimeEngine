@@ -348,9 +348,9 @@ public:
             particles[i].velocity = particles[i].velocity + (gravity * dt);
             particles[i].prev_pos = particles[i].pos;
             particles[i].pos = particles[i].pos + particles[i].velocity * dt;
-            if (particles[i].pos.y <= -5) {
+            if (particles[i].pos.y <= -4) {
                 particles[i].pos = particles[i].prev_pos;
-                particles[i].pos.y = -5;
+                particles[i].pos.y = -4;
                 //particles[i].inv_mass = 0.0f;
 
             }

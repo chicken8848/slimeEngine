@@ -28,7 +28,7 @@ float lastFrame = 0.0f; // Time of the last frame
 float yaw = -90.0f;
 float pitch = -20.0f;
 //Camera ourCam = Camera(glm::vec3(0.0f, -4.0f, 5.0f)); // Camera object
-Camera ourCam = Camera(glm::vec3(0.0f, -2.0f, 5.0f), glm::vec3(0.0f, 1.0f, 0.0f), yaw, pitch);
+Camera ourCam = Camera(glm::vec3(0.0f, -1.0f, 5.0f), glm::vec3(0.0f, 1.0f, 0.0f), yaw, pitch);
 bool first_mouse = true; // For mouse movement
 float lastX = SCR_WIDTH / 2.0f; // Last mouse X position
 float lastY = SCR_HEIGHT / 2.0f; // Last mouse Y position
@@ -178,7 +178,7 @@ int main() {
         ImGui::SliderFloat("Volume compliance", &testModel->meshes[0].volume_compliance, 0.01f, 0.2f);
         ImGui::SliderInt("Substeps", &substeps, 1, 50);
 
-        if (ImGui::Button("Reset")) {
+        if (ImGui::Button("Drop")) {
             reset = true;
         }
         if (ImGui::Button("Lift")) {
@@ -237,7 +237,7 @@ int main() {
         }
         testModel->Draw(ourShader);
 
-        glm::mat4 floorModelMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -5.0f, 0.0f));
+        glm::mat4 floorModelMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -4.0f, 0.0f));
         ourShader.setMat4("model", floorModelMatrix);
         floorModel->Draw(ourShader);
 
