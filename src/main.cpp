@@ -118,9 +118,9 @@ int main() {
 
     Model* floorModel = new Model(FileSystem::getPath("assets/floor/floor.obj"));
 
-    std::vector<std::string> availableObjects = { "pudding", "sphere" };
+    std::vector<std::string> availableObjects = { "pudding", "sphere", "cube", "bunny"};
 
-    int object_index = 0; //change this to change object used
+    int object_index = 3; //change this to change object used
     loadObject(availableObjects[object_index]);
 
     //loadObject("sphere");
@@ -301,7 +301,7 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
             //cout << "Mouse button pressed" << endl;
 
             //glm::vec3 vertexPosition = testModel->meshes[0].vertices[0].Position;
-            testModel->meshes[0].particles[0].pos += glm::vec3(0, 0.1, 0); // I guess that works
+            //testModel->meshes[0].particles[0].pos += glm::vec3(0, 0.1, 0); // I guess that works
             //cout << testModel->meshes[0].particles[0].pos.y << endl;
 
             //for (int i = 0; i < testModel->meshes[0].particles.size(); ++i) {

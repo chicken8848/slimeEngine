@@ -183,8 +183,8 @@ public:
 
             try {
                 float x = std::stof(tokens[1]);
-                float y = std::stof(tokens[3]);
-                float z = std::stof(tokens[2]);
+                float y = std::stof(tokens[2]);
+                float z = std::stof(tokens[3]);
 
                 Particle p(glm::vec3(x, y, z), mass);
                 particles.push_back(p);
@@ -257,7 +257,8 @@ public:
             line = std::regex_replace(line, std::regex("^\\s+|\\s+$"), "");
 
             // Skip empty lines or comments
-            if (line.empty() || line[0] == '#') continue;
+            if (line.empty() || line[0] == '#')
+                continue;
 
             std::sregex_token_iterator iter(line.begin(), line.end(), whitespace, -1);
             std::sregex_token_iterator end;
@@ -281,6 +282,15 @@ public:
                 particles[tet.particle_ids.y].inv_mass = 1 / (tet.rest_volume / 4);
                 particles[tet.particle_ids.z].inv_mass = 1 / (tet.rest_volume / 4);
                 particles[tet.particle_ids.w].inv_mass = 1 / (tet.rest_volume / 4);
+
+                particles[tet.particle_ids.x].mass =
+                    particles[tet.particle_ids.x].inv_mass;
+                particles[tet.particle_ids.y].mass =
+                    particles[tet.particle_ids.y].inv_mass;
+                particles[tet.particle_ids.z].mass =
+                    particles[tet.particle_ids.z].inv_mass;
+                particles[tet.particle_ids.w].mass =
+                    particles[tet.particle_ids.w].inv_mass;
 
                 tetrahedrons.push_back(tet);
             }
