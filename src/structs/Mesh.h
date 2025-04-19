@@ -356,9 +356,9 @@ public:
             particles[i].velocity = particles[i].velocity + (gravity * dt);
             particles[i].prev_pos = particles[i].pos;
             particles[i].pos = particles[i].pos + particles[i].velocity * dt;
-            if (particles[i].pos.y <= -4) {
+            if (particles[i].pos.y <= -2) {
                 particles[i].pos = particles[i].prev_pos;
-                particles[i].pos.y = -4;
+                particles[i].pos.y = -2;
             }
         }
     }
@@ -531,14 +531,15 @@ public:
 
     bool intersect(const Ray& r, Hit& h, float tmin) {
         bool result = false;
-        for (unsigned int i = 0; i < vertices.size() / 3; i++) { //?? it was indices
-            glm::vec3 a = vertices[3 * i].Position;
-            glm::vec3 b = vertices[3 * i + 1].Position;
-            glm::vec3 c = vertices[3 * i + 2].Position;
+        for (unsigned int i = 0; i < indices.size() / 3; i++) {
+            glm::vec3 a = vertices[indices[3 * i]].Position;
+            glm::vec3 b = vertices[indices[3 * i + 1]].Position;
+            glm::vec3 c = vertices[indices[3 * i + 2]].Position;
             result |= triangle_intersect(r, h, tmin, a, b, c);
         }
         return result;
     }
+
 
 private:
     unsigned int VBO, EBO;
