@@ -149,7 +149,7 @@ void processInput(GLFWwindow *window) {
 Model loadObject(const std::string &name) {
   std::string basePath = "assets/" + name + "/" + name;
 
-  Model testModel(FileSystem::getPath(basePath + ".obj"));
+  Model testModel(FileSystem::getPath(basePath + ".stl"));
 
   testModel.meshes[0].initSoftBody(FileSystem::getPath(basePath + ".1.node"),
                                    FileSystem::getPath(basePath + ".1.ele"),
@@ -309,9 +309,10 @@ int main() {
 
   ourCam.Position = {0, 1, 5.0f};
 
-  std::vector<std::string> availableObjects = {"pudding", "sphere"};
+  std::vector<std::string> availableObjects = {"pudding", "sphere", "bunny",
+                                               "tetrahedron"};
 
-  int object_index = 0; // change this to change object used
+  int object_index = 2; // change this to change object used
   Model testModel = loadObject(availableObjects[object_index]);
 
   Model floor(
