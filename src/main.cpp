@@ -3,265 +3,141 @@
 #include <imgui/headers/imgui_impl_opengl3.h>
 
 #include <glad/glad.h>
-
 #include <GLFW/glfw3.h>
-#include <cmath>
-#include <glm/ext/matrix_clip_space.hpp>
-#include <glm/ext/matrix_transform.hpp>
-#include <glm/ext/quaternion_geometric.hpp>
-#include <glm/ext/vector_float3.hpp>
-#include <glm/geometric.hpp>
-#include <glm/trigonometric.hpp>
-#include <iostream>
-#include <stdio.h>
-
-#include "structs/Camera.h"
-#include "structs/Shader.h"
-#include "structs/stb_image.h"
-
-//#include "structs/debugging.h"
-
-#include "structs/Hit.h"
-#include "structs/Ray.h"
-
-#include "structs/Model.h"
-
-#include <learnopengl/filesystem.h>
-
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <iostream>
+#include <vector>
 
+#include "structs/Camera.h"
+#include "structs/Shader.h"
+#include "structs/Model.h"
+#include "structs/stb_image.h"
+#include <learnopengl/filesystem.h>
+
+// Window dimensions
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
-glm::vec3 gravity = { 0, -10, 0 };
-int substeps = 3;
+// Global variables
+float deltaTime = 0.0f; // Time between frames
+float lastFrame = 0.0f; // Time of the last frame
 
-//float mixValue = 0.2;
+// Camera
+float yaw = -90.0f;
+float pitch = -20.0f;
+//Camera ourCam = Camera(glm::vec3(0.0f, -4.0f, 5.0f)); // Camera object
+Camera ourCam = Camera(glm::vec3(0.0f, -2.0f, 5.0f), glm::vec3(0.0f, 1.0f, 0.0f), yaw, pitch);
+bool first_mouse = true; // For mouse movement
+float lastX = SCR_WIDTH / 2.0f; // Last mouse X position
+float lastY = SCR_HEIGHT / 2.0f; // Last mouse Y position
 
-glm::mat4 view;
+Model* testModel;
+Model* floorModel;
 
-float deltaTime = 0.0f; // Time between current frame and last frame
-float lastFrame = 0.0f;
+float mass = 0.01f; // higher = more jiggly, 0.01 is good
 
-//Camera ourCam = Camera();
-Camera ourCam = Camera(glm::vec3(0.0f, -2.0f, 5.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, -20.0f);
-bool first_mouse = true;
+//compliance is 0 to 10
+//edge *50
 
-float lastX = SCR_WIDTH / 2.0f;
-float lastY = SCR_HEIGHT / 2.0f;
-
+//add this 4 things to imgui
 float edge_compliance = 0.01f; // higher = more jiggly, 0.01 is good
-float volume_compliance = 0.001f;
-float mass = 0.1f;
-
-glm::vec3 mouse_offset = { 0, 0, 0 };
-bool grab = false;
+float volume_compliance = 0.1f;
+int substeps = 30; //more = smoother, 10 to 30 is good
 bool reset = true;
-Particle* grabbed_particle = nullptr;
-Hit* h = new Hit();
 
-bool cursor = false;
+//bool dragging = false;
+//int selectedVertexIndex = -1;
 
-// Create callback function for resizing window
-void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
-    glViewport(0, 0, width, height);
-}
+// Function declarations
+void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+void mouse_callback(GLFWwindow* window, double xposIn, double yposIn);
+void scroll_callback(GLFWwindow* window, double xpos, double ypos);
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
+void processInput(GLFWwindow* window);
 
-void mouse_callback(GLFWwindow* window, double xposIn, double yposIn) {
-    float xpos = static_cast<float>(xposIn);
-    float ypos = static_cast<float>(yposIn);
-    if (first_mouse) {
-        lastX = xpos;
-        lastY = ypos;
-        first_mouse = false;
-    }
-
-    float xoffset = xpos - lastX;
-    float yoffset = lastY - ypos;
-    lastX = xpos;
-    lastY = ypos;
-    if (!cursor) {
-        ourCam.ProcessMouseMovement(xoffset, yoffset, true);
-    }
-    mouse_offset.x = xoffset;
-    mouse_offset.y = yoffset;
-}
-
-void scroll_callback(GLFWwindow* window, double xpos, double ypos) {
-    ourCam.ProcessMouseScroll(static_cast<float>(ypos));
-}
-
-// Processing Input
-void processInput(GLFWwindow* window) {
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, true);
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-        ourCam.ProcessKeyboard(FORWARD, deltaTime);
-    }
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-        ourCam.ProcessKeyboard(BACKWARD, deltaTime);
-    }
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-        ourCam.ProcessKeyboard(LEFT, deltaTime);
-    }
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-        ourCam.ProcessKeyboard(RIGHT, deltaTime);
-    }
-    //if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-    //    ourCam.ProcessKeyboard(UP, deltaTime);
-    //}
-    //if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
-    //    ourCam.ProcessKeyboard(DOWN, deltaTime);
-    //}
-    if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS) {
-        grab = true;
-    }
-    if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
-        grab = false;
-    }
-    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
-        reset = true;
-    }
-    if (glfwGetKey(window, GLFW_KEY_K) == GLFW_PRESS) {
-        cursor = true;
-    }
-    if (glfwGetKey(window, GLFW_KEY_L) == GLFW_PRESS) {
-        cursor = false;
-    }
-    if (cursor) {
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-    }
-    else {
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    }
-}
-
-Model loadObject(const std::string& name) {
+void loadObject(const std::string& name) {
     std::string basePath = "assets/" + name + "/" + name;
 
-    Model testModel(FileSystem::getPath(basePath + ".obj"));
+    testModel = new Model(FileSystem::getPath(basePath + ".obj"));
 
-    testModel.meshes[0].initSoftBody(FileSystem::getPath(basePath + ".1.node"),
+    testModel->meshes[0].initSoftBody(
+        FileSystem::getPath(basePath + ".1.node"),
         FileSystem::getPath(basePath + ".1.ele"),
-        mass, edge_compliance, volume_compliance);
-    return testModel;
+        mass,
+        edge_compliance,
+        volume_compliance
+    );
 }
-
-Mesh* intersection(Camera& c, Model& m, Hit& h) {
-    Mesh* hitMesh = nullptr;
-    bool intersect = false;
-    Ray r(c.Position, c.Front);
-    for (Mesh& mesh : m.meshes) {
-        // buffer var to check when to update mesh
-        float t0 = h.getT();
-        mesh.intersect(r, h, 0.0f);
-        float t1 = h.getT();
-        // update hitMesh if t is updated
-        if (t1 < t0) {
-            hitMesh = &mesh;
-            intersect = true;
-        }
-    }
-    return hitMesh;
-}
-
-Particle* findPointRT(Camera& c, Hit& h, Mesh& hitMesh) {
-    float t = h.getT();
-    glm::vec3 intersection_point = c.Position + t * c.Front;
-    Particle* nearest_particle = &hitMesh.particles[0];
-    float min_distance = glm::length(intersection_point - nearest_particle->pos);
-
-    for (Particle& p : hitMesh.particles) {
-        float new_distance = glm::length(intersection_point - p.pos);
-        if (new_distance < min_distance) {
-            nearest_particle = &p;
-            min_distance = new_distance;
-        }
-    }
-    return nearest_particle;
-}
-
-void reset_grabbed() {
-    grabbed_particle->inv_mass = grabbed_particle->mass;
-    grabbed_particle->velocity = glm::vec3(0.0f);
-    grabbed_particle = nullptr;
-    grab = false;
-}
-
 
 int main() {
+    // Initialize GLFW
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    // Create a window object
-    GLFWwindow* window =
-        glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "slimeEngine", NULL, NULL);
-
+    // Create a window
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "slimeEngine", NULL, NULL);
     if (window == NULL) {
-        printf("Failed to create GLFW Window");
+        std::cerr << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
         return -1;
     }
-
-    // Make main thread context the window context
     glfwMakeContextCurrent(window);
 
-    // init GLAD so we can manage function pointers to OpenGL
+    // Initialize GLAD
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-        printf("Failed to initialize GLAD");
-        glfwTerminate();
+        std::cerr << "Failed to initialize GLAD" << std::endl;
         return -1;
     }
 
-    // Tell openGl the size of rendering window
+    // Set up OpenGL viewport and callbacks
     glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
-
-    // tell GLFW to call this function on every window resize
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-
-    glfwSetCursorPosCallback(window, mouse_callback);
+    //comment this to stop camera movement: can toggle with ctrl?
+    //glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetScrollCallback(window, scroll_callback);
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetMouseButtonCallback(window, mouse_button_callback);
 
-    glm::vec3 pointLightPositions[] = {
-        glm::vec3(0.7f, 0.2f, 2.0f), glm::vec3(2.3f, -3.3f, -4.0f),
-        glm::vec3(-4.0f, 2.0f, -12.0f), glm::vec3(1.0f, 2.0f, 3.0f) };
+    //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 
-
+    // Enable depth testing
     glEnable(GL_DEPTH_TEST);
-
-    stbi_set_flip_vertically_on_load(true);
 
     // Load shaders
     Shader ourShader(
         "C:/Users/zq/Documents/GitHub/slimeEngine/src/shaders/texture2.vert",
         "C:/Users/zq/Documents/GitHub/slimeEngine/src/shaders/texture2.frag"
     );
-    ourShader.use();
 
-    ourShader.setVec3("pointLights[0].position", 0.0f, 5.0f, 0.0f);
-    ourShader.setVec3("pointLights[0].ambient", 0.1f, 0.1f, 0.1f);
-    ourShader.setVec3("pointLights[0].diffuse", 0.8f, 0.8f, 0.8f);
-    ourShader.setVec3("pointLights[0].specular", 1.0f, 1.0f, 1.0f);
-    ourShader.setFloat("pointLights[0].constant", 1.0f);
-    ourShader.setFloat("pointLights[0].linear", 0.09f);
-    ourShader.setFloat("pointLights[0].quadratic", 0.032f);
+    // Load model
+    stbi_set_flip_vertically_on_load(true);
 
-    ourCam.Position = { 0, 1, 5.0f };
+    Model* floorModel = new Model(FileSystem::getPath("assets/floor/floor.obj"));
 
     std::vector<std::string> availableObjects = { "pudding", "sphere" };
 
-    int object_index = 0; // change this to change object used
-    Model testModel = loadObject(availableObjects[object_index]);
+    int object_index = 0; //change this to change object used
+    loadObject(availableObjects[object_index]);
 
-    Model floor(FileSystem::getPath("assets/floor/floor.obj"));
+    //loadObject("sphere");
 
-    glEnable(GL_BLEND); // you enable blending function
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // Set up point lights
+    glm::vec3 pointLightPositions[] = {
+        glm::vec3(0.7f, 0.2f, 2.0f),
+        glm::vec3(2.3f, -3.3f, -4.0f),
+        glm::vec3(-4.0f, 2.0f, -12.0f),
+        glm::vec3(0.0f, 0.0f, -3.0f)
+    };
+
+    // Model matrix
+    glm::mat4 model = glm::mat4(1.0f);
+    model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
+    model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));
 
     // Initialize ImGUI
     IMGUI_CHECKVERSION();
@@ -271,85 +147,26 @@ int main() {
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 330");
 
-
     // Render loop
     while (!glfwWindowShouldClose(window)) {
-
+        // Calculate delta time
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
+        /*     if (deltaTime < 1e-5f) {
+                 deltaTime = 1e-5f;
+             }*/
+             //deltaTime = 1.0f / 60.0f;
         lastFrame = currentFrame;
-        // Inputs
+
+        // Process input
         processInput(window);
-        // Rendering Commands
-        //glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+
+        // Clear the screen
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        // use the program
-
-        ourShader.use();
-
-        ourShader.setVec3("pointLights[0].position", 0.0f, 5.0f, 0.0f);
-        ourShader.setVec3("pointLights[0].ambient", 0.3f, 0.3f, 0.3f);
-        ourShader.setVec3("pointLights[0].diffuse", 0.7f, 0.7f, 0.7f);
-        ourShader.setVec3("pointLights[0].specular", 1.0f, 1.0f, 1.0f);
-        ourShader.setFloat("pointLights[0].constant", 1.0f);
-        ourShader.setFloat("pointLights[0].linear", 0.09f);
-        ourShader.setFloat("pointLights[0].quadratic", 0.032f);
-
-        glm::mat4 projection = glm::mat4(1.0f);
-        projection =
-            glm::perspective(glm::radians(ourCam.Zoom),
-                (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-
-        ourShader.setMat4("projection", projection);
-        view = ourCam.GetViewMatrix();
-        ourShader.setMat4("view", view);
-
-        glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(
-            model,
-            glm::vec3(
-                0.0f, 0.0f,
-                0.0f)); // translate it down so it's at the center of the scene
-        model = glm::scale(
-            model,
-            glm::vec3(1.0f, 1.0f,
-                1.0f)); // it's a bit too big for our scene, so scale it down
-        ourShader.setMat4("model", model);
-
-        testModel.Draw(ourShader);
-        glm::mat4 floor_model = glm::translate(model, glm::vec3(0.0f, -2.0f, 0.0f));
-        ourShader.setMat4("model", floor_model);
-        floor.Draw(ourShader);
-        testModel.meshes[0].update(deltaTime, substeps, gravity);
-
-        if (reset) {
-            testModel.meshes[0].reset();
-            grab = false;
-            reset = false;
-        }
-
-        if (grab) {
-            if (grabbed_particle == nullptr) {
-                Mesh* hitMesh = intersection(ourCam, testModel, *h);
-                if (hitMesh != nullptr) {
-                    grabbed_particle = findPointRT(ourCam, *h, *hitMesh);
-                }
-            }
-            else {
-                grabbed_particle->inv_mass = 0.0f;
-                grabbed_particle->pos = ourCam.Position + h->getT() * ourCam.Front;
-            }
-        }
-        else {
-            if (grabbed_particle != nullptr) {
-                reset_grabbed();
-                h = new Hit();
-            }
-        }
 
         // Tell OpenGL a new frame is about to begin
-            ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
@@ -357,8 +174,8 @@ int main() {
         // ImGUI window creation
         ImGui::Begin("Soft Body Parameters", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
         // Sliders for parameters
-        ImGui::SliderFloat("Edge compliance", &testModel.meshes[0].edge_compliance, 0.005f, 0.05f);
-        ImGui::SliderFloat("Volume compliance", &testModel.meshes[0].volume_compliance, 0.001f, 0.2f);
+        ImGui::SliderFloat("Edge compliance", &testModel->meshes[0].edge_compliance, 0.01f, 0.2f);
+        ImGui::SliderFloat("Volume compliance", &testModel->meshes[0].volume_compliance, 0.01f, 0.2f);
         ImGui::SliderInt("Substeps", &substeps, 1, 50);
 
         if (ImGui::Button("Reset")) {
@@ -370,26 +187,211 @@ int main() {
 
         // Detect if "Lift" button is being held down
         if (ImGui::IsItemActive()) {
-            for (int i = 0; i < testModel.meshes[0].particles.size(); ++i) {
-                testModel.meshes[0].particles[i].pos += glm::vec3(0, 0.01f, 0);
+            for (int i = 0; i < testModel->meshes[0].particles.size(); ++i) {
+                testModel->meshes[0].particles[i].pos += glm::vec3(0, 0.01f, 0);
             }
         }
 
         // Ends the window
         ImGui::End();
 
+        // Use shader program
+        ourShader.use();
+
+        // Set up point light properties
+        ourShader.setVec3("pointLights[0].position", pointLightPositions[0]);
+        ourShader.setVec3("pointLights[0].ambient", 0.1f, 0.1f, 0.1f);
+        ourShader.setVec3("pointLights[0].diffuse", 0.8f, 0.8f, 0.8f);
+        ourShader.setVec3("pointLights[0].specular", 1.0f, 1.0f, 1.0f);
+        ourShader.setFloat("pointLights[0].constant", 1.0f);
+        ourShader.setFloat("pointLights[0].linear", 0.09f);
+        ourShader.setFloat("pointLights[0].quadratic", 0.032f);
+
+        ourShader.setVec3("pointLights[1].position", pointLightPositions[1]);
+        ourShader.setVec3("pointLights[1].ambient", 0.1f, 0.1f, 0.1f);
+        ourShader.setVec3("pointLights[1].diffuse", 0.8f, 0.8f, 0.8f);
+        ourShader.setVec3("pointLights[1].specular", 1.0f, 1.0f, 1.0f);
+        ourShader.setFloat("pointLights[1].constant", 1.0f);
+        ourShader.setFloat("pointLights[1].linear", 0.09f);
+        ourShader.setFloat("pointLights[1].quadratic", 0.032f);
+
+        // Set up projection and view matrices
+        glm::mat4 projection = glm::perspective(glm::radians(ourCam.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+        ourShader.setMat4("projection", projection);
+        glm::mat4 view = ourCam.GetViewMatrix();
+        ourShader.setMat4("view", view);
+
+        // Draw the model
+        ourShader.setMat4("model", model);
+
+        //if (currentFrame > 5) {
+
+        glm::vec3 gravity = { 0, -10, 0 };
+
+        testModel->meshes[0].update(deltaTime, substeps, gravity);
+
+        //testModel->meshes[0].updateCompliance(edge_compliance, volume_compliance);
+        if (reset) {
+            testModel->meshes[0].reset();
+            reset = false;
+        }
+        testModel->Draw(ourShader);
+
+        glm::mat4 floorModelMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -5.0f, 0.0f));
+        ourShader.setMat4("model", floorModelMatrix);
+        floorModel->Draw(ourShader);
+
         // Renders the ImGUI elements
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
+        // Swap buffers and poll events
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
+
     // Deletes all ImGUI instances
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
 
+    // Clean up and exit
     glfwTerminate();
     return 0;
+}
+
+// Callback for window resizing
+void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
+    glViewport(0, 0, width, height);
+}
+
+// Callback for mouse movement
+void mouse_callback(GLFWwindow* window, double xposIn, double yposIn) {
+    float xpos = static_cast<float>(xposIn);
+    float ypos = static_cast<float>(yposIn);
+
+    if (first_mouse) {
+        lastX = xpos;
+        lastY = ypos;
+        first_mouse = false;
+    }
+
+    float xoffset = xpos - lastX;
+    float yoffset = lastY - ypos;
+    lastX = xpos;
+    lastY = ypos;
+
+    ourCam.ProcessMouseMovement(xoffset, yoffset, true);
+}
+
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
+    if (button == GLFW_MOUSE_BUTTON_LEFT) {
+        if (action == GLFW_PRESS) {
+            double xpos, ypos;
+            glfwGetCursorPos(window, &xpos, &ypos);
+
+            float ndcX = (2.0f * xpos / SCR_WIDTH) - 1.0f;
+            float ndcY = 1.0f - (2.0f * ypos / SCR_HEIGHT);
+
+            glm::vec2 mousePos = glm::vec2(ndcX, ndcY);
+            //cout << "Mouse Position: " << mousePos.x << ", " << mousePos.y << endl;  // Debugging
+
+            float threshold = 0.05f;
+
+            //cout << "Mouse button pressed" << endl;
+
+            //glm::vec3 vertexPosition = testModel->meshes[0].vertices[0].Position;
+            testModel->meshes[0].particles[0].pos += glm::vec3(0, 0.1, 0); // I guess that works
+            //cout << testModel->meshes[0].particles[0].pos.y << endl;
+
+            //for (int i = 0; i < testModel->meshes[0].particles.size(); ++i) {
+            //    glm::vec2 v2D = glm::vec2(testModel->meshes[0].particles[i].pos.x,
+            //        testModel->meshes[0].particles[i].pos.y);
+            //    //cout << "Checking vertex " << i << ": " << v2D.x << ", " << v2D.y << endl;  // Debugging
+            //    if (glm::distance(v2D, mousePos) < threshold) {
+            //        dragging = true;
+            //        cout << "dragging";
+            //        selectedVertexIndex = i;
+            //        break;
+            //    }
+            //}
+        }
+        else if (action == GLFW_RELEASE) {
+            //dragging = false;
+        }
+    }
+}
+
+
+// Callback for mouse scroll
+void scroll_callback(GLFWwindow* window, double xpos, double ypos) {
+    ourCam.ProcessMouseScroll(static_cast<float>(ypos));
+}
+
+// Process keyboard input
+void processInput(GLFWwindow* window) {
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, true);
+
+    // Camera movement
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+        ourCam.ProcessKeyboard(FORWARD, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        ourCam.ProcessKeyboard(BACKWARD, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        ourCam.ProcessKeyboard(LEFT, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        ourCam.ProcessKeyboard(RIGHT, deltaTime);
+
+
+    if (glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS) {
+        if (testModel->meshes[0].edge_compliance > 0.01) {
+            testModel->meshes[0].edge_compliance -= 0.0001;
+            cout << "Edge compliance: " << testModel->meshes[0].edge_compliance << endl;
+        }
+    }
+    if (glfwGetKey(window, GLFW_KEY_Y) == GLFW_PRESS) {
+        testModel->meshes[0].edge_compliance += 0.0001;
+        cout << "Edge compliance: " << testModel->meshes[0].edge_compliance << endl;
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS) {
+        if (volume_compliance >= 0.01) {
+            testModel->meshes[0].volume_compliance -= 0.001;
+            cout << "Volume compliance: " << testModel->meshes[0].volume_compliance << endl;
+        }
+    }
+    if (glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS) {
+        testModel->meshes[0].volume_compliance += 0.001;
+        cout << "Volume compliance: " << testModel->meshes[0].volume_compliance << endl;
+    }
+    if (glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS) {
+        if (substeps >= 1) {
+            substeps -= 1;
+            cout << "Substeps: " << substeps << endl;
+        }
+    }
+    if (glfwGetKey(window, GLFW_KEY_N) == GLFW_PRESS) {
+        substeps += 1;
+        cout << "Substeps: " << substeps << endl;
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS) {
+        testModel->meshes[0].particles.back().pos += glm::vec3(-0.1f, 0, 0);
+    }
+    if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS) {
+        testModel->meshes[0].particles.back().pos += glm::vec3(0.1f, 0, 0);
+    }
+    if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
+        //reset();
+        reset = true;
+        //testModel->meshes[0].edge_compliance = 0.01;
+
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS) {
+        for (int i = 0; i < testModel->meshes[0].particles.size(); ++i) {
+            testModel->meshes[0].particles[i].pos += glm::vec3(0, 0.01f, 0);
+        }
+    }
 }
