@@ -52,9 +52,9 @@ float volume_compliance = 0.0f;
 float mass = 0.1f;
 
 glm::vec3 mouse_offset = { 0, 0, 0 };
-bool grab = false;
+//bool grab = false;
 bool reset = false;
-Particle* grabbed_particle = nullptr;
+//Particle* grabbed_particle = nullptr;
 //Hit* h = new Hit();
 
 bool cursor = false;
@@ -124,12 +124,12 @@ void processInput(GLFWwindow* window) {
     //if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
     //    ourCam.ProcessKeyboard(DOWN, deltaTime);
     //}
-    if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS) {
-        grab = true;
-    }
-    if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
-        grab = false;
-    }
+    //if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS) {
+    //    grab = true;
+    //}
+    //if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
+    //    grab = false;
+    //}
     if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
         reset = true;
     }
@@ -192,12 +192,12 @@ Model loadObject(const std::string& name) {
 //    return nearest_particle;
 //}
 
-void reset_grabbed() {
-    grabbed_particle->inv_mass = grabbed_particle->mass;
-    grabbed_particle->velocity = glm::vec3(0.0f);
-    grabbed_particle = nullptr;
-    grab = false;
-}
+//void reset_grabbed() {
+//    grabbed_particle->inv_mass = grabbed_particle->mass;
+//    grabbed_particle->velocity = glm::vec3(0.0f);
+//    grabbed_particle = nullptr;
+//    grab = false;
+//}
 
 int main() {
     glfwInit();
@@ -311,10 +311,9 @@ int main() {
 
     ourCam.Position = { 0, 1, 5.0f };
 
-    std::vector<std::string> availableObjects = { "pudding", "sphere", "bunny",
-                                                 "tetrahedron" };
+    std::vector<std::string> availableObjects = { "pudding", "sphere", "bunny", "tetrahedron" };
 
-    int object_index = 2; // change this to change object used
+    int object_index = 0; // change this to change object used
     Model testModel = loadObject(availableObjects[object_index]);
 
     Model floor(
@@ -375,7 +374,7 @@ int main() {
 
         if (reset) {
             testModel.meshes[0].reset();
-            grab = false;
+            //grab = false;
             reset = false;
         }
 
