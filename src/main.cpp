@@ -44,7 +44,7 @@ float mass = 0.01f; // higher = more jiggly, 0.01 is good
 //add this 4 things to imgui
 float edge_compliance = 0.01f; // higher = more jiggly, 0.01 is good
 float volume_compliance = 0.1f;
-int substeps = 30; //more = smoother, 10 to 30 is good
+int substeps = 10; //more = smoother, 10 to 30 is good
 bool reset = true;
 
 //bool dragging = false;
@@ -60,7 +60,7 @@ void processInput(GLFWwindow* window);
 void loadObject(const std::string& name) {
     std::string basePath = "assets/" + name + "/" + name;
 
-    testModel = new Model(FileSystem::getPath(basePath + ".obj"));
+    testModel = new Model(FileSystem::getPath(basePath + ".stl"));
 
     testModel->meshes[0].initSoftBody(
         FileSystem::getPath(basePath + ".1.node"),
@@ -118,9 +118,9 @@ int main() {
 
     Model* floorModel = new Model(FileSystem::getPath("assets/floor/floor.obj"));
 
-    std::vector<std::string> availableObjects = { "pudding", "sphere", "cube", "bunny"};
+    std::vector<std::string> availableObjects = { "tetrahedron", "cube", "pudding", "sphere", "bunny", };
 
-    int object_index = 3; //change this to change object used
+    int object_index = 0; //change this to change object used
     loadObject(availableObjects[object_index]);
 
     //loadObject("sphere");
@@ -191,6 +191,13 @@ int main() {
                 testModel->meshes[0].particles[i].pos += glm::vec3(0, 0.01f, 0);
             }
         }
+
+        //if (ImGui::Button("Push left")) {
+        //    testModel->meshes[0].particles.back().pos += glm::vec3(-0.8f, 0, 0);
+        //}
+        //if (ImGui::Button("Push right")) {
+        //    testModel->meshes[0].particles.back().pos += glm::vec3(0.8f, 0, 0);
+        //}
 
         // Ends the window
         ImGui::End();
