@@ -1,3 +1,7 @@
+#include <imgui/headers/imgui.h>
+#include <imgui/headers/imgui_impl_glfw.h>
+#include <imgui/headers/imgui_impl_opengl3.h>
+
 #include <glad/glad.h>
 
 #include <GLFW/glfw3.h>
@@ -36,7 +40,7 @@ const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
 glm::vec3 gravity = { 0, -10, 0 };
-const int substeps = 3;
+int substeps = 3;
 
 float mixValue = 0.2;
 
@@ -45,7 +49,11 @@ glm::mat4 view;
 float deltaTime = 0.0f; // Time between current frame and last frame
 float lastFrame = 0.0f;
 
-Camera ourCam = Camera();
+//Camera ourCam = Camera();
+//float yaw = -90.0f;
+//float pitch = -20.0f;
+//Camera ourCam = Camera(glm::vec3(0.0f, -4.0f, 5.0f)); // Camera object
+Camera ourCam = Camera(glm::vec3(0.0f, -2.0f, 5.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, -20.0f);
 bool first_mouse = true;
 
 float lastX = SCR_WIDTH / 2.0f;
@@ -57,11 +65,11 @@ float mass = 0.1f;
 
 glm::vec3 mouse_offset = { 0, 0, 0 };
 //bool grab = false;
-bool reset = false;
+bool reset = true;
 //Particle* grabbed_particle = nullptr;
 //Hit* h = new Hit();
 
-bool cursor = false;
+bool cursor = true;
 
 // Create callback function for resizing window
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
@@ -147,7 +155,7 @@ void processInput(GLFWwindow* window) {
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     }
     else {
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     }
 }
 
@@ -238,6 +246,7 @@ int main() {
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetScrollCallback(window, scroll_callback);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 
     glm::vec3 pointLightPositions[] = {
         glm::vec3(0.7f, 0.2f, 2.0f), glm::vec3(2.3f, -3.3f, -4.0f),
@@ -315,9 +324,9 @@ int main() {
 
     ourCam.Position = { 0, 1, 5.0f };
 
-    std::vector<std::string> availableObjects = { "pudding", "sphere", "bunny", "tetrahedron" };
+    std::vector<std::string> availableObjects = { "pudding", "sphere", "bunny", "tetrahedron" , "cube"};
 
-    int object_index = 0; // change this to change object used
+    int object_index = 4; // change this to change object used
     Model testModel = loadObject(availableObjects[object_index]);
 
     Model floor(
@@ -325,6 +334,14 @@ int main() {
 
     glEnable(GL_BLEND); // you enable blending function
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // Initialize ImGUI
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGui::StyleColorsDark();
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init("#version 330");
 
     // Render loop
     while (!glfwWindowShouldClose(window)) {
@@ -338,6 +355,37 @@ int main() {
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         // use the program
+
+        // Tell OpenGL a new frame is about to begin
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
+        // ImGUI window creation
+        ImGui::Begin("Soft Body Parameters", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+        // Sliders for parameters
+        ImGui::SliderFloat("Edge compliance", &testModel.meshes[0].edge_compliance, 0.01f, 0.2f);
+        ImGui::SliderFloat("Volume compliance", &testModel.meshes[0].volume_compliance, 0.0f, 0.2f);
+        ImGui::SliderInt("Substeps", &substeps, 1, 50);
+
+        if (ImGui::Button("Reset")) {
+            reset = true;
+        }
+        if (ImGui::Button("Lift")) {
+            // Optional: do something on click
+        }
+
+        // Detect if "Lift" button is being held down
+        if (ImGui::IsItemActive()) {
+            for (int i = 0; i < testModel.meshes[0].particles.size(); ++i) {
+                testModel.meshes[0].particles[i].pos += glm::vec3(0, 0.01f, 0);
+            }
+        }
+
+        // Ends the window
+        ImGui::End();
+
 
         ourShader.use();
 
@@ -401,9 +449,18 @@ int main() {
             }
         }*/
 
+        // Renders the ImGUI elements
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
+    // Deletes all ImGUI instances
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
 
     glfwTerminate();
     return 0;
