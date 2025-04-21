@@ -11,14 +11,13 @@ set(ASSIMP_LIBRARY "slimeEngine/libs/assimp/assimp-vc143-mtd.lib")
 **On Windows (Win32):**
 - Use **Visual Studio** to open the project solution and build.
 
-
 ## How to Use the Executable
 After building, run:
 ```
 slimeEngine\build\Debug\slimeEngine.exe
 ```
 
-### Selecting the Object
+### Selecting the Model
 Available objects:
 ```
 0 - pudding
@@ -27,16 +26,33 @@ Available objects:
 3 - tetrahedron
 4 - cube
 ```
-
-By default, the model used is **pudding** (index 0).
-
-To choose a different model, pass the object index as a command-line argument.  
-For example, to select **sphere**:
+By default, the model is **pudding** (index 0).  
+To select another model, pass its index as an argument:
 ```
 .\slimeEngine.exe 1
 ```
+(Loads the **sphere**.)
 
-This will load the **sphere** model instead.
+---
+
+## User Interface and Controls
+
+### Camera Controls
+- **Mouse Movement** — Control camera yaw and pitch (first-person view).
+- **W / A / S / D keys** — Move camera forward, left, backward, and right.
+
+### Object Interaction
+- **Aim** at the soft body and press **G** to grab and drag a vertex.
+- **Press R** to release the selected vertex.
+- **Selection** uses ray tracing from the center of the screen to hit soft body triangles.
+
+### ImGui Control Panel
+A real-time panel (built with ImGui) allows live tuning:
+- **Edge Compliance** — Softness of edges: 0.01f to 0.2f
+- **Volume Compliance** — Resistance to volume change: 0.01f to 0.2f
+- **Substeps** — Number of times the constraints are solved:  1 to 50
+- **Reset Button** — Resets the model (drops it from a height of 5.0f).
+- **Lift Button** — Moves the entire soft body upwards while holding the button  
 
 
 ## Problems We Encountered
