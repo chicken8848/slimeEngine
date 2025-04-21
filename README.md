@@ -36,7 +36,9 @@ To select another model, pass its index as an argument:
 ## User Interface and Controls
 
 ### Camera Controls
-- **Mouse Movement** — Control camera yaw and pitch (first-person view).
+- **Mouse Movement**  
+  - Press **L**: Lock the mouse to control camera yaw and pitch (first-person view).
+  - Press **K**: Unlock the mouse for normal cursor movement (adjust parameters in ImGui).
 - **W / A / S / D keys** — Move camera forward, left, backward, and right.
 
 ### Object Interaction
