@@ -155,7 +155,7 @@ void processInput(GLFWwindow* window) {
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     }
     else {
-        //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     }
 }
 
@@ -326,7 +326,7 @@ int main() {
 
     std::vector<std::string> availableObjects = { "pudding", "sphere", "bunny", "tetrahedron" , "cube"};
 
-    int object_index = 4; // change this to change object used
+    int object_index = 0; // change this to change object used
     Model testModel = loadObject(availableObjects[object_index]);
 
     Model floor(

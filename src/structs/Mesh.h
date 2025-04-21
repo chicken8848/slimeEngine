@@ -183,7 +183,7 @@ public:
 
             try {
                 float x = std::stof(tokens[1]);
-                float y = std::stof(tokens[2]);
+                float y = std::stof(tokens[2]); //for obj, 3, stl, 2
                 float z = std::stof(tokens[3]);
 
                 Particle p(glm::vec3(x, y, z), mass);

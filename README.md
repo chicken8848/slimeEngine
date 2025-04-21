@@ -1,19 +1,21 @@
-# slimeEngine
+# Soft Body Simulation (slimeEngine)
 
-## TODO
-1. Obj class
-2. Collisions
-3. Hooke's law mathy math
+## How to Compile and Run
+**Modify `CMakeLists.txt`:**
+```cmake
+set(GLFW3_LIBRARY "slimeEngine/libs/glfw3.lib")
+set(GLFW3_INCLUDE "slimeEngine/include/GLFW")
+set(ASSIMP_LIBRARY "slimeEngine/libs/assimp/assimp-vc143-mtd.lib")
+```
 
-## Future features
-1. Obj grabber
-2. Mesh editor
+**On Windows:**
+- Use **Visual Studio** to open the project and build.
 
-## XPBD
-### Approach
-- create tetrahedral mesh (using delaunay tetrahedralisation, 
-bro has a tutorial: https://youtu.be/sNxz_Ht6Y1Y?si=1TeYnT59vSePK5bV)
-- create
-    - one particle per vertex
-    - one distance constraint per edge
-    - one volume constraint per tetrahedron $$ C = 6(V -V_o) $$
+## How to Use the Executable
+After building, run:
+```
+slimeEngine\build\Debug\slimeEngine.exe
+```
+
+## Problems We Encountered
+- Intel graphics drivers may not fully support **OpenGL 3.3**, leading to compatibility issues.
