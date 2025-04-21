@@ -33,8 +33,6 @@ To select another model, pass its index as an argument:
 ```
 (Loads the **sphere**.)
 
----
-
 ## User Interface and Controls
 
 ### Camera Controls
