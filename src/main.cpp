@@ -211,7 +211,7 @@ Model loadObject(const std::string& name) {
 //    grab = false;
 //}
 
-int main() {
+int main(int argc, char* argv[]) {
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -326,7 +326,21 @@ int main() {
 
     std::vector<std::string> availableObjects = { "pudding", "sphere", "bunny", "tetrahedron" , "cube"};
 
-    int object_index = 0; // change this to change object used
+    //int object_index = 0; // change this to change object used
+
+    int object_index = 0; // default
+
+    if (argc > 1) {
+        object_index = std::stoi(argv[1]); // take from cmd
+    }
+
+    if (object_index < 0 || object_index >= availableObjects.size()) {
+        std::cout << "Invalid object index!" << std::endl;
+        return 1;
+    }
+
+    std::cout << "Selected object: " << availableObjects[object_index] << std::endl;
+
     Model testModel = loadObject(availableObjects[object_index]);
 
     Model floor(
