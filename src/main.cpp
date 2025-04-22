@@ -296,10 +296,8 @@ int main(int argc, char *argv[]) {
 
   stbi_set_flip_vertically_on_load(true);
 
-  Shader ourShader("/home/chicken8848/Documents/programming/slimeEngine/src/"
-                   "shaders/texture2.vert",
-                   "/home/chicken8848/Documents/programming/slimeEngine/src/"
-                   "shaders/texture2.frag");
+  Shader ourShader(FileSystem::getPath("src/shaders/texture2.vert").c_str(),
+                   FileSystem::getPath("src/shaders/texture2.frag").c_str());
   ourShader.use();
 
   ourShader.setVec3("pointLights[0].position", 0.0f, 5.0f, 0.0f);
@@ -345,7 +343,6 @@ int main(int argc, char *argv[]) {
 
   // Render loop
   while (!glfwWindowShouldClose(window)) {
-
     float currentFrame = glfwGetTime();
     deltaTime = currentFrame - lastFrame;
     lastFrame = currentFrame;
