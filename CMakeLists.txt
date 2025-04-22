@@ -38,7 +38,10 @@ target_include_directories(slimeEngine PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(slimeEngine PUBLIC ${CMAKE_SOURCE_DIR}/src/structs)
 target_link_libraries(slimeEngine GLAD ${GLFW3_LIBRARY} ${ASSIMP_LIBRARY})
 
-if(UNIX)
+if(APPLE)
+  target_link_libraries(slimeEngine "-framework OpenGL" "-framework Cocoa"
+                        "-framework IOKit")
+elseif(UNIX)
   target_link_libraries(
     slimeEngine
     GL
