@@ -1,17 +1,26 @@
 # Soft Body Simulation (slimeEngine)
 
 ## How to Compile and Run
-**Modify `CMakeLists.txt`:**
-```cmake
-set(GLFW3_LIBRARY "slimeEngine/libs/glfw3.lib")
-set(GLFW3_INCLUDE "slimeEngine/include/GLFW")
-set(ASSIMP_LIBRARY "slimeEngine/libs/assimp/assimp-vc143-mtd.lib")
+**On UNIX systems**
+```shell
+mkdir build
+cd build
+cmake ../
+make
 ```
 
 **On Windows (Win32):**
 - Use **Visual Studio** to open the project solution and build.
 
 ## How to Use the Executable
+**On UNIX systems**
+From root folder,
+```shell
+cd build
+./slimeEngine
+```
+
+**On Windows (Win32)**
 After building, run:
 ```
 slimeEngine\build\Debug\slimeEngine.exe
