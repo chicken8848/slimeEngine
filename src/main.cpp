@@ -1,3 +1,7 @@
+#include <imgui/headers/imgui.h>
+#include <imgui/headers/imgui_impl_glfw.h>
+#include <imgui/headers/imgui_impl_opengl3.h>
+
 #include <glad/glad.h>
 
 #include <GLFW/glfw3.h>
@@ -21,7 +25,6 @@
 #include "structs/Ray.h"
 
 #include "structs/Model.h"
-
 #include <learnopengl/filesystem.h>
 
 #include <glm/glm.hpp>
@@ -32,7 +35,7 @@ const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
 glm::vec3 gravity = {0, -10, 0};
-const int substeps = 3;
+int substeps = 3;
 
 float mixValue = 0.2;
 
@@ -198,7 +201,7 @@ void reset_grabbed() {
   grab = false;
 }
 
-int main() {
+int main(int argc, char *argv[]) {
   glfwInit();
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -312,11 +315,30 @@ int main() {
   std::vector<std::string> availableObjects = {"pudding", "sphere", "bunny",
                                                "tetrahedron"};
 
-  int object_index = 2; // change this to change object used
+  int object_index = 0; // change this to change object used
+
+  if (argc > 1) {
+    object_index = std::stoi(argv[1]); // take from cmd
+  }
+
+  if (object_index < 0 || object_index >= availableObjects.size()) {
+    std::cout << "Invalid object index!" << std::endl;
+    return 1;
+  }
+
   Model testModel = loadObject(availableObjects[object_index]);
 
   Model floor(
       FileSystem::getPath("assets/chessboarddfloor/chesssboardfloor.obj"));
+
+  // Initialize ImGUI
+  IMGUI_CHECKVERSION();
+  ImGui::CreateContext();
+  ImGuiIO &io = ImGui::GetIO();
+  (void)io;
+  ImGui::StyleColorsDark();
+  ImGui_ImplGlfw_InitForOpenGL(window, true);
+  ImGui_ImplOpenGL3_Init("#version 330");
 
   glEnable(GL_BLEND); // you enable blending function
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -332,7 +354,39 @@ int main() {
     // Rendering Commands
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    // use the program
+
+    // Tell OpenGL a new frame is about to begin
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+
+    ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
+    // ImGUI window creation
+    ImGui::Begin("Soft Body Parameters", nullptr,
+                 ImGuiWindowFlags_AlwaysAutoResize);
+    // Sliders for parameters
+    ImGui::SliderFloat("Edge compliance", &testModel.meshes[0].edge_compliance,
+                       0.01f, 0.2f);
+    ImGui::SliderFloat("Volume compliance",
+                       &testModel.meshes[0].volume_compliance, 0.0f, 0.2f);
+    ImGui::SliderInt("Substeps", &substeps, 1, 50);
+
+    if (ImGui::Button("Reset")) {
+      reset = true;
+    }
+    if (ImGui::Button("Lift")) {
+      // Optional: do something on click
+    }
+
+    // Detect if "Lift" button is being held down
+    if (ImGui::IsItemActive()) {
+      for (int i = 0; i < testModel.meshes[0].particles.size(); ++i) {
+        testModel.meshes[0].particles[i].pos += glm::vec3(0, 0.01f, 0);
+      }
+    }
+
+    // Ends the window
+    ImGui::End();
 
     ourShader.use();
 
@@ -394,9 +448,17 @@ int main() {
       }
     }
 
+    ImGui::Render();
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
     glfwSwapBuffers(window);
     glfwPollEvents();
   }
+
+  // Deletes all ImGUI instances
+  ImGui_ImplOpenGL3_Shutdown();
+  ImGui_ImplGlfw_Shutdown();
+  ImGui::DestroyContext();
 
   glfwTerminate();
   return 0;

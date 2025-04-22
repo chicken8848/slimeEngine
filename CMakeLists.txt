@@ -6,17 +6,23 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON) # Enforce C++ standard
 set(CMAKE_BUILD_TYPE Debug) # Use Debug mode
 set(CMAKE_CXX_FLAGS "-Wall -Wextra -g") # Add warning and debug flags
 
-set(GLFW3_LIBRARY
-    "$ENV{HOME}/Documents/programming/third-party-libraries/opengl/libs/libglfw3.a"
-)
-set(GLFW3_INCLUDE
-    "$ENV{HOME}/Documents/programming/third-party-libraries/opengl/include")
+set(GLFW3_LIBRARY "${CMAKE_SOURCE_DIR}/libs/libglfw3.a")
+set(IMGUI_INCLUDE "${CMAKE_SOURCE_DIR}/include/imgui_DIR")
+set(IMGUI_SOURCES
+    ${CMAKE_SOURCE_DIR}/include/imgui/cpp/imgui.cpp
+    ${CMAKE_SOURCE_DIR}/include/imgui/cpp/imgui_draw.cpp
+    ${CMAKE_SOURCE_DIR}/include/imgui/cpp/imgui_tables.cpp
+    ${CMAKE_SOURCE_DIR}/include/imgui/cpp/imgui_widgets.cpp
+    ${CMAKE_SOURCE_DIR}/include/imgui/cpp/imgui_demo.cpp
+    ${CMAKE_SOURCE_DIR}/include/imgui/cpp/imgui_impl_glfw.cpp
+    ${CMAKE_SOURCE_DIR}/include/imgui/cpp/imgui_impl_opengl3.cpp)
 
 include_directories(${GLFW3_INCLUDE})
+include_directories(${IMGUI_INCLUDE})
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
 find_package(assimp REQUIRED)
-link_directories(${CMAKE_SOURCE_DIR}/lib/)
+link_directories(${CMAKE_SOURCE_DIR}/libs)
 
 set(SRC_FILES src/main.cpp src/stb_image.cpp)
 
@@ -27,7 +33,7 @@ add_library(GLAD STATIC "src/glad.c")
 set(LIBS GLAD)
 target_include_directories(GLAD PUBLIC ${CMAKE_SOURCE_DIR}/include)
 
-add_executable(slimeEngine ${SRC_FILES})
+add_executable(slimeEngine ${SRC_FILES} ${IMGUI_SOURCES})
 target_include_directories(slimeEngine PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(slimeEngine PUBLIC ${CMAKE_SOURCE_DIR}/src/structs)
 target_link_libraries(slimeEngine GLAD ${GLFW3_LIBRARY} assimp)
