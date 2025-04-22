@@ -41,6 +41,10 @@ To select another model, pass its index as an argument:
 .\slimeEngine.exe 1
 ```
 (Loads the **sphere**.)
+Or on UNIX:
+```shell
+./slimeEngine 1
+```
 
 ## User Interface and Controls
 
