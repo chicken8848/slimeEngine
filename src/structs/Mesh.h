@@ -198,7 +198,7 @@ public:
   }
 
   void create_particle_vertex_map() {
-    const float epsilon = 0.1f;
+    const float epsilon = 0.0f;
     for (int i = 0; i < particles.size(); i++) {
       for (int j = 0; j < vertices.size(); j++) {
         if (glm::length(particles[i].pos - vertices[j].Position) <= epsilon) {
